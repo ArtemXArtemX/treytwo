@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Link } from "react-router-dom";
 import logo from "../../assets/logo.svg";
 
 interface LoginForm {
@@ -147,16 +148,15 @@ const LoginPage: React.FC = () => {
                     <a href="#" className="auth-link d-block">
                         Забыли пароль?
                     </a>
-                    <span className="auth-footer-text">
+                    <span className="text-center">
             Нет аккаунта?{" "}
-                        <a href="#" className="auth-link">
+                        <Link to="/register">
               Зарегистрироваться
-            </a>
+            </Link>
           </span>
                 </div>
             </div>
         </div>
     );
 };
-
 export default LoginPage;
