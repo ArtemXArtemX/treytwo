@@ -1,0 +1,166 @@
+:root{
+    --trey-red: #D1001C;
+    --trey-bg: #f4f6fa;
+    --trey-border: #e7eaf0;
+    --trey-text: #111827;
+    --trey-muted: #6b7280;
+
+    --planned-bg: rgba(13,110,253,0.12);
+    --planned-pill: rgba(13,110,253,0.18);
+
+    --done-bg: rgba(25,135,84,0.14);
+    --done-pill: rgba(25,135,84,0.20);
+}
+
+.trey-calendar-card{
+    border: 1px solid var(--trey-border);
+    border-radius: 18px;
+    box-shadow: 0 10px 25px rgba(17,24,39,0.08);
+    background: #fff;
+}
+
+.trey-page-title{
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--trey-text);
+}
+.trey-subtitle{
+    color: var(--trey-muted);
+    margin-top: 4px;
+}
+
+.fc{
+    --fc-border-color: var(--trey-border);
+    --fc-today-bg-color: rgba(209,0,28,0.05);
+    font-family: inherit;
+}
+
+.fc .fc-highlight { background: transparent !important; }
+.fc .fc-daygrid-day.fc-day-today { outline: none !important; }
+.fc .fc-scrollgrid-section td:focus,
+.fc .fc-scrollgrid-section th:focus,
+.fc .fc-daygrid-day:focus { outline: none !important; }
+.fc .fc-daygrid-day.fc-day-today { box-shadow: none !important; }
+
+.fc .fc-daygrid-day-frame{
+    padding: 8px;
+    min-height: 120px;
+}
+
+.fc .fc-col-header-cell-cushion{
+    font-weight: 700;
+    color: var(--trey-text);
+    padding: 12px 0;
+}
+
+.fc .fc-daygrid-day-number{
+    font-weight: 600;
+    color: var(--trey-text);
+    padding: 0;
+}
+
+.fc td.trey-day--planned{ background: var(--planned-bg); }
+.fc td.trey-day--done{ background: var(--done-bg); }
+
+.fc .fc-daygrid-day-frame{ background: transparent; }
+
+.trey-daycell{
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.trey-daynum{
+    font-weight: 600;
+    color: var(--trey-text);
+}
+.trey-daynum--other{
+    color: #9ca3af;
+}
+
+.trey-status{
+    margin-top: auto;
+    align-self: flex-start;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.01em;
+}
+.trey-status--planned{
+    background: var(--planned-pill);
+    color: #0d6efd;
+}
+.trey-status--done{
+    background: var(--done-pill);
+    color: #198754;
+}
+
+.trey-segment{
+    display: inline-flex;
+    background: #fff;
+    border: 1px solid var(--trey-border);
+    border-radius: 12px;
+    overflow: hidden;
+}
+.trey-segment button{
+    border: none;
+    background: transparent;
+    padding: 10px 14px;
+    font-weight: 600;
+    color: var(--trey-muted);
+}
+.trey-segment button.active{
+    background: var(--trey-red);
+    color: #fff;
+}
+
+.trey-cal-header{
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.trey-cal-header__left{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.trey-cal-header__center{
+    text-align: center;
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.02em;
+    color: var(--trey-text);
+}
+.trey-cal-header__right{
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.trey-arrow{
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--trey-border);
+    background: #fff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--trey-text);
+}
+.trey-arrow:hover{
+    border-color: rgba(209,0,28,0.35);
+}
+
+.fc .fc-header-toolbar{
+    display: none;
+}
+
+.trey-calendar-card a,
+.trey-calendar-card span {
+    text-decoration: none !important;
+}
