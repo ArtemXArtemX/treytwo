@@ -3,6 +3,8 @@ import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import "../../styles/fullcalendar.css";
+import "bootstrap-icons/font/bootstrap-icons.css";
+
 
 import Header from "../../components/Header";
 
@@ -75,18 +77,36 @@ const AthleteCalendarPage: React.FC = () => {
                             </div>
                         </div>
 
-                        <button
-                            className="btn text-white"
-                            style={{
-                                background: "#D1001C",
-                                borderRadius: 12,
-                                padding: "10px 16px",
-                                fontWeight: 700,
-                            }}
-                            type="button"
-                        >
-                            Создать сессию
-                        </button>
+                        <div className="d-flex gap-2">
+                            <button
+                                className="btn text-white"
+                                style={{
+                                    background: "#D1001C",
+                                    borderRadius: 12,
+                                    padding: "10px 16px",
+                                    fontWeight: 700,
+                                }}
+                                type="button"
+                            >
+                                Создать занятие
+                            </button>
+
+                            <button
+                                className="btn btn-outline-danger"
+                                style={{
+                                    borderRadius: 12,
+                                    width: 44,
+                                    height: 44,
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                }}
+                                type="button"
+                                title="Загрузить занятие"
+                            >
+                                <i className="bi bi-upload" style={{ fontSize: 18 }} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="trey-calendar-card p-3 p-md-4">

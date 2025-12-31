@@ -1,4 +1,4 @@
-:root {
+decoration:root {
     --primary-color: #D1001C;
     --bg-page: #f4f5f7;
     --text-main: #111827;
@@ -107,4 +107,17 @@ html, body, #root {
 
 .footer {
     flex-shrink: 0;
+}
+
+.trey-navlink{
+    text-decoration: none;
+    color: #6b7280;            /* серый */
+    font-weight: 600;
+    padding: 6px 2px;
+    transition: color .15s ease;
+}
+
+.trey-navlink.is-active{
+    color: #D1001C;
+    font-weight: 800;
 }

@@ -16,37 +16,48 @@ const Header: React.FC<Props> = ({ active = "calendar", notificationsCount = 3 }
                 </div>
 
                 <nav className="d-none d-md-flex gap-4">
-                    <Link className={`text-decoration-none ${active === "calendar" ? "fw-bold" : "text-muted"}`} to="/athlete/calendar">
+                    <Link
+                        className={`trey-navlink ${active === "calendar" ? "is-active" : ""}`}
+                        to="/calendar"
+                    >
                         Календарь
                     </Link>
-                    <a className="text-decoration-none text-muted" href="#report">Отчёт</a>
-                    <a className="text-decoration-none text-muted" href="#analysis">Анализ</a>
-                    <a className="text-decoration-none text-muted" href="#coach">Тренер</a>
-                    <a className="text-decoration-none text-muted" href="#challenges">Челленджи</a>
+
+                    <a className={`trey-navlink ${active === "report" ? "is-active" : ""}`} href="#report">
+                        Отчёт
+                    </a>
+
+                    <a className={`trey-navlink ${active === "analysis" ? "is-active" : ""}`} href="#analysis">
+                        Анализ
+                    </a>
+
+                    <a className={`trey-navlink ${active === "coach" ? "is-active" : ""}`} href="#coach">
+                        Тренер
+                    </a>
+
+                    <a
+                        className={`trey-navlink ${active === "challenges" ? "is-active" : ""}`}
+                        href="#challenges"
+                    >
+                        Челленджи
+                    </a>
                 </nav>
 
                 <div className="d-flex align-items-center gap-3">
-                    <button className="btn btn-light position-relative" type="button" aria-label="Уведомления">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                            <path
-                                d="M12 22a2.5 2.5 0 0 0 2.45-2H9.55A2.5 2.5 0 0 0 12 22Z"
-                                fill="currentColor"
-                            />
-                            <path
-                                d="M18 16v-5a6 6 0 1 0-12 0v5l-2 2v1h16v-1l-2-2Z"
-                                stroke="currentColor"
-                                strokeWidth="1.8"
-                                strokeLinejoin="round"
-                            />
-                        </svg>
+                    <button
+                        className="btn btn-light position-relative"
+                        type="button"
+                        aria-label="Уведомления"
+                    >
+                        <i className="bi bi-bell" style={{ fontSize: 18 }} />
 
                         {notificationsCount > 0 && (
                             <span
                                 className="position-absolute top-0 start-100 translate-middle badge rounded-pill"
                                 style={{ background: "#D1001C" }}
                             >
-                {notificationsCount}
-              </span>
+                              {notificationsCount}
+                            </span>
                         )}
                     </button>
 
