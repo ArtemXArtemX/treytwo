@@ -164,3 +164,45 @@
 .trey-calendar-card span {
     text-decoration: none !important;
 }
+
+/* Внутренняя рамка дня */
+.fc .fc-daygrid-day-frame {
+    padding: 8px;
+    min-height: 120px;
+    position: relative;
+}
+
+/* Число дня (стандартное) — пусть будет как у FullCalendar, но стабильно */
+.fc .fc-daygrid-day-top {
+    justify-content: flex-end; /* число справа */
+}
+
+/* Контейнер твоего контента */
+.trey-daycell {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
+/* Чтобы контент не лез под число справа сверху */
+.trey-training-info {
+    margin-top: 22px; /* место под номер дня */
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    text-align: left;
+}
+
+/* 1 строка */
+.trey-training-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    line-height: 1.2;
+}
+
+/* 2 строка */
+.trey-training-time {
+    font-size: 12px;
+    color: #6b7280;
+}

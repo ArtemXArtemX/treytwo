@@ -1,4 +1,3 @@
-// src/pages/Auth/RegistrationPage.tsx
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.svg";

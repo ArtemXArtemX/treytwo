@@ -1,13 +1,14 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import logo from "../assets/logo.svg";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import 'bootstrap-icons/font/bootstrap-icons.css';
 
 type Props = {
     active?: "calendar" | "report" | "analysis" | "coach" | "challenges";
-    notificationsCount?: number;
 };
 
-const Header: React.FC<Props> = ({ active = "calendar", notificationsCount = 3 }) => {
+const Header: React.FC<Props> = ({ active = "calendar" }) => {
     return (
         <header className="bg-white border-bottom">
             <div className="container py-3 d-flex align-items-center justify-content-between">
@@ -44,26 +45,32 @@ const Header: React.FC<Props> = ({ active = "calendar", notificationsCount = 3 }
                 </nav>
 
                 <div className="d-flex align-items-center gap-3">
+                    {/* Кнопка уведомлений */}
                     <button
-                        className="btn btn-light position-relative"
                         type="button"
+                        className="btn btn-light rounded-circle position-relative"
+                        style={{
+                            width: "40px",
+                            height: "40px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center"
+                        }}
                         aria-label="Уведомления"
                     >
-                        <i className="bi bi-bell" style={{ fontSize: 18 }} />
-
-                        {notificationsCount > 0 && (
-                            <span
-                                className="position-absolute top-0 start-100 translate-middle badge rounded-pill"
-                                style={{ background: "#D1001C" }}
-                            >
-                              {notificationsCount}
-                            </span>
-                        )}
+                        <i className="bi bi-bell fs-5"></i>
                     </button>
 
+                    {/* Аватар пользователя */}
                     <div
                         className="rounded-circle d-flex align-items-center justify-content-center"
-                        style={{ width: 36, height: 36, background: "#0d6efd", color: "#fff", fontWeight: 700 }}
+                        style={{
+                            width: 36,
+                            height: 36,
+                            background: "#0d6efd",
+                            color: "#fff",
+                            fontWeight: 700
+                        }}
                         title="Профиль"
                     >
                         AB

@@ -7,10 +7,8 @@ const Footer: React.FC = () => {
         <footer className="bg-dark text-light py-4">
             <div className="container">
 
-                {/* Блоки - равная ширина */}
                 <div className="row mb-3">
 
-                    {/* Условия */}
                     <div className="col-md-4 text-center mb-3 mb-md-0">
                         <div className="mb-1 small text-muted">Пользовательское соглашение</div>
                         <a
@@ -22,7 +20,6 @@ const Footer: React.FC = () => {
                         </a>
                     </div>
 
-                    {/* Конфиденциальность */}
                     <div className="col-md-4 text-center mb-3 mb-md-0">
                         <div className="mb-1 small text-muted">Конфиденциальность данных</div>
                         <a
@@ -34,7 +31,6 @@ const Footer: React.FC = () => {
                         </a>
                     </div>
 
-                    {/* Обратная связь */}
                     <div className="col-md-4 text-center">
                         <div className="mb-1 small text-muted">Поддержка пользователей</div>
                         <a
@@ -48,11 +44,10 @@ const Footer: React.FC = () => {
 
                 </div>
 
-                {/* Копирайт по центру */}
                 <div className="text-center pt-3 border-top border-secondary">
                     <div className="d-inline-flex align-items-center">
                         <span className="fs-5 fw-bold">
-                            © Trey<sup>2</sup> 2025
+                            © Trey<sup>2</sup> 2026
                         </span>
                     </div>
                 </div>
