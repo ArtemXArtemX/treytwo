@@ -59,8 +59,9 @@ const GpsMap: React.FC<Props> = ({ points = [] }) => {
                 key={`map-${points.length}`}
             >
                 <TileLayer
-                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    maxZoom={19}
+                    url="https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png"
+                    attribution=''
+                    maxZoom={17}
                     minZoom={1}
                 />
 
@@ -98,7 +99,6 @@ const GpsMap: React.FC<Props> = ({ points = [] }) => {
                 color: "#666",
                 zIndex: 1000
             }}>
-                {leafletPoints.length} точек
             </div>
         </div>
     );

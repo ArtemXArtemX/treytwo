@@ -111,7 +111,7 @@ html, body, #root {
 
 .trey-navlink{
     text-decoration: none;
-    color: #6b7280;            /* серый */
+    color: #6b7280;
     font-weight: 600;
     padding: 6px 2px;
     transition: color .15s ease;
@@ -120,4 +120,8 @@ html, body, #root {
 .trey-navlink.is-active{
     color: #D1001C;
     font-weight: 800;
+}
+
+.leaflet-bottom.leaflet-right {
+    display: none !important;
 }

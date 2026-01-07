@@ -21,6 +21,7 @@ interface RegistrationForm {
 
 const SPORT_OPTIONS = [
     { value: "", label: "Выберите вид спорта" },
+    { value: "orienteering", label: "Ориентирование" },
     { value: "running", label: "Бег" },
     { value: "cycling", label: "Велоспорт" },
     { value: "swimming", label: "Плавание" },
@@ -48,14 +49,12 @@ const RegistrationPage: React.FC = () => {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    // универсальный обработчик полей
     const handleInput = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setForm((prev) => ({ ...prev, [name]: value }));
         setErrors((prev) => ({ ...prev, [name]: "" }));
     };
 
-    // валидация
     const validate = () => {
         const err: Record<string, string> = {};
 
@@ -93,7 +92,6 @@ const RegistrationPage: React.FC = () => {
         return Object.keys(err).length === 0;
     };
 
-    // отправка
     const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -116,7 +114,6 @@ const RegistrationPage: React.FC = () => {
 
         console.log("MOCK REGISTER PAYLOAD:", payload);
 
-        // моментальный переход
         navigate("/login");
     };
 
@@ -142,7 +139,6 @@ const RegistrationPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleSubmit} noValidate>
-                    {/* роль */}
                     <div className="mb-4">
                         <label className="form-label fw-bold">Выберите вашу роль</label>
 
@@ -173,7 +169,6 @@ const RegistrationPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* ФИО */}
                     <div className="row g-3 mb-3">
                         <div className="col-md-4">
                             <label className="form-label">Фамилия</label>
@@ -202,7 +197,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-4">
-                            <label className="form-label">Отчество</label>
+                            <label className="form-label">Отчество*</label>
                             <input
                                 name="fatherName"
                                 value={form.fatherName}
@@ -212,7 +207,6 @@ const RegistrationPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* ник */}
                     <div className="mb-3">
                         <label className="form-label">Никнейм</label>
                         <input
@@ -224,7 +218,6 @@ const RegistrationPage: React.FC = () => {
                         {errors.nickname && <div className="invalid-feedback">{errors.nickname}</div>}
                     </div>
 
-                    {/* пол, дата рождения */}
                     <div className="row g-3 mb-3">
                         <div className="col-md-4">
                             <label className="form-label">Пол</label>
@@ -261,7 +254,6 @@ const RegistrationPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* вид спорта */}
                     <div className="mb-3">
                         <label className="form-label">Основной вид спорта</label>
                         <select
@@ -281,7 +273,6 @@ const RegistrationPage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* почта */}
                     <div className="row g-3 mb-3">
                         <div className="col-md-6">
                             <label className="form-label">Email</label>
@@ -314,7 +305,6 @@ const RegistrationPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* пароль */}
                     <div className="row g-3 mb-3">
                         <div className="col-md-6">
                             <label className="form-label">Пароль</label>
@@ -348,7 +338,17 @@ const RegistrationPage: React.FC = () => {
                     </div>
 
                     <div className="d-grid mb-3">
-                        <button className="btn btn-primary" type="submit">
+                        <button
+                            className="btn"
+                            type="submit"
+                            style={{
+                                backgroundColor: "#D1001C",
+                                color: "white",
+                                border: "none",
+                                padding: "10px 20px",
+                                borderRadius: "8px"
+                            }}
+                        >
                             Зарегистрироваться
                         </button>
                     </div>

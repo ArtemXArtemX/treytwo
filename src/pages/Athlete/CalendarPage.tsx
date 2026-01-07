@@ -88,7 +88,6 @@ const AthleteCalendarPage: React.FC = () => {
     const trainingByDate = useMemo(() => {
         const map = new Map<string, TrainingEvent>();
         trainings.forEach((t) => {
-            // done “перебивает” planned при совпадении даты
             const prev = map.get(t.date);
             if (!prev) map.set(t.date, t);
             else if (prev.status !== "done" && t.status === "done") map.set(t.date, t);

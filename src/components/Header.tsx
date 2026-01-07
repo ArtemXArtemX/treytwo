@@ -45,7 +45,6 @@ const Header: React.FC<Props> = ({ active = "calendar" }) => {
                 </nav>
 
                 <div className="d-flex align-items-center gap-3">
-                    {/* Кнопка уведомлений */}
                     <button
                         type="button"
                         className="btn btn-light rounded-circle position-relative"
@@ -61,7 +60,6 @@ const Header: React.FC<Props> = ({ active = "calendar" }) => {
                         <i className="bi bi-bell fs-5"></i>
                     </button>
 
-                    {/* Аватар пользователя */}
                     <div
                         className="rounded-circle d-flex align-items-center justify-content-center"
                         style={{

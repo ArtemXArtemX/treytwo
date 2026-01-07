@@ -36,13 +36,12 @@ const LoginPage: React.FC = () => {
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
         e.preventDefault();
 
-        // Заглушка для проверки
         if (
             form.email === MOCK_USER.email &&
             form.password === MOCK_USER.password
         ) {
             setError(null);
-            setSuccess("Успешный вход (заглушка).");
+            setSuccess("Успешный вход.");
             console.log("LOGIN SUCCESS:", form);
         } else {
             setSuccess(null);
@@ -105,10 +104,17 @@ const LoginPage: React.FC = () => {
                             />
                             <button
                                 type="button"
-                                className="btn btn-outline-secondary"
                                 onClick={() => setShowPassword((prev) => !prev)}
+                                style={{
+                                    backgroundColor: "white",
+                                    border: "1px solid #ced4da",
+                                    borderLeft: "none",
+                                    color: "#6c757d",
+                                    padding: "0 12px",
+                                    cursor: "pointer"
+                                }}
                             >
-                                {showPassword ? "🙈" : "👁"}
+                                <i className={`bi ${showPassword ? "bi-eye-slash" : "bi-eye"}`}></i>
                             </button>
                         </div>
                     </div>
@@ -122,17 +128,30 @@ const LoginPage: React.FC = () => {
                             checked={form.remember}
                             onChange={handleChange}
                         />
-                        <label htmlFor="remember" className="form-check-label">
+                        <label
+                            htmlFor="remember"
+                            className="form-check-label"
+                        >
                             Сохранить вход
                         </label>
                     </div>
 
-                    <button type="submit" className="btn btn-primary w-100 mb-2">
+                    <button
+                        type="submit"
+                        className="btn w-100 mb-2"
+                        style={{
+                            backgroundColor: "#D1001C",
+                            color: "white",
+                            border: "none",
+                            padding: "10px 20px",
+                            borderRadius: "8px",
+                            fontWeight: 600
+                        }}
+                    >
                         Войти
                     </button>
                 </form>
 
-                {/* Сообщения об ошибке / успехе */}
                 {error && (
                     <div className="mt-2 text-danger" style={{ fontSize: 14 }}>
                         {error}
@@ -149,14 +168,15 @@ const LoginPage: React.FC = () => {
                         Забыли пароль?
                     </a>
                     <span className="text-center">
-            Нет аккаунта?{" "}
+                        Нет аккаунта?{" "}
                         <Link to="/register">
-              Зарегистрироваться
-            </Link>
-          </span>
+                            Зарегистрироваться
+                        </Link>
+                    </span>
                 </div>
             </div>
         </div>
     );
 };
+
 export default LoginPage;
