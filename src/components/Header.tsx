@@ -47,31 +47,55 @@ const Header: React.FC<Props> = ({ active = "calendar" }) => {
                 <div className="d-flex align-items-center gap-3">
                     <button
                         type="button"
-                        className="btn btn-light rounded-circle position-relative"
                         style={{
                             width: "40px",
                             height: "40px",
                             display: "flex",
                             alignItems: "center",
-                            justifyContent: "center"
+                            border: "0px",
+                            justifyContent: "center",
+                            backgroundColor: "transparent",
+                            borderRadius: "0.375rem",
+                            cursor: "pointer",
+                            padding: 0
                         }}
                         aria-label="Уведомления"
                     >
                         <i className="bi bi-bell fs-5"></i>
                     </button>
 
-                    <div
-                        className="rounded-circle d-flex align-items-center justify-content-center"
-                        style={{
-                            width: 36,
-                            height: 36,
-                            background: "#0d6efd",
-                            color: "#fff",
-                            fontWeight: 700
-                        }}
-                        title="Профиль"
-                    >
-                        AB
+                    <div className="dropdown">
+                        <div
+                            className="rounded-circle d-flex align-items-center justify-content-center"
+                            style={{
+                                width: 36,
+                                height: 36,
+                                background: "#0d6efd",
+                                color: "#fff",
+                                fontWeight: 700,
+                                cursor: "pointer"
+                            }}
+                            title="Профиль"
+                            data-bs-toggle="dropdown"
+                        >
+                            AB
+                        </div>
+
+                        <div className="dropdown-menu dropdown-menu-end">
+                            <Link to="/profile" className="dropdown-item">
+                                <i className="bi bi-person me-2"></i>
+                                Профиль
+                            </Link>
+                            <a className="dropdown-item" href="#">
+                                <i className="bi bi-gear me-2"></i>
+                                Настройки
+                            </a>
+                            <div className="dropdown-divider"></div>
+                            <button className="dropdown-item text-danger">
+                                <i className="bi bi-box-arrow-right me-2"></i>
+                                Выйти
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>

@@ -125,3 +125,17 @@ html, body, #root {
 .leaflet-bottom.leaflet-right {
     display: none !important;
 }
+
+.dropdown-menu {
+    min-width: 220px;
+    border: 1px solid #e7eaf0;
+}
+
+.dropdown-item:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-item:active {
+    background-color: #D1001C;
+    color: white;
+}
