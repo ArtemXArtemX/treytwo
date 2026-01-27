@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 
 export type CreateSessionPayload = {
     date: string;
@@ -14,6 +14,8 @@ export type CreateSessionPayload = {
     elevationGainM?: number;
     elevationLossM?: number;
     calories?: number;
+    isRace?: boolean;
+    isTest?: boolean;
 };
 
 type Props = {
@@ -26,49 +28,65 @@ const SPORT_OPTIONS = [
     { value: "orienteering", label: "Ориентирование" },
     { value: "running", label: "Бег" },
     { value: "trail", label: "Трейл" },
-    { value: "cycling", label: "Велосипед" },
-    { value: "swimming", label: "Плавание" },
-    { value: "strength", label: "Силовые" },
-    { value: "other", label: "Другой" },
+    { value: "other", label: "Другое" },
 ];
 
 const TRAINING_TYPES = [
     { value: "", label: "Выберите тип тренировки" },
     { value: "interval", label: "Интервальная" },
     { value: "tempo", label: "Темповая" },
-    { value: "long", label: "Длинная" },
+    { value: "long", label: "Длительная" },
     { value: "recovery", label: "Восстановительная" },
     { value: "steady", label: "Поддерживающая" },
-    { value: "strength", label: "Силовая" },
     { value: "other", label: "Другое" },
 ];
 
 const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const [openStats, setOpenStats] = useState(false);
 
+    const getCurrentDate = () => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
+
+    const getCurrentTime = () => {
+        const now = new Date();
+        const hours = String(now.getHours()).padStart(2, '0');
+        const minutes = String(now.getMinutes()).padStart(2, '0');
+        return `${hours}:${minutes}`;
+    };
+
     const [form, setForm] = useState({
         name: "",
         sport: "",
         typeTraining: "",
         note: "",
-        date: "",
-        startTime: "",
+        date: getCurrentDate(),
+        startTime: getCurrentTime(),
         distanceKm: "",
-        durationHours: "0",
-        durationMinutes: "0",
-        durationSeconds: "0",
+        durationHours: "",
+        durationMinutes: "",
+        durationSeconds: "",
         avgHr: "",
         calories: "",
         elevationGainM: "",
         elevationLossM: "",
+        isRace: false,
+        isTest: false,
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     const handle = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
+        const { name, value, type } = e.target;
 
-        if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM"].includes(name)) {
+        if (type === "checkbox") {
+            const checkbox = e.target as HTMLInputElement;
+            setForm((p) => ({ ...p, [name]: checkbox.checked }));
+        } else if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM"].includes(name)) {
             if (value === "" || /^\d*$/.test(value)) {
                 const numValue = value === "" ? "" : value;
                 setForm((p) => ({ ...p, [name]: numValue }));
@@ -87,9 +105,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const validate = () => {
         const e: Record<string, string> = {};
 
-        if (!form.name.trim()) e.name = "Введите имя";
+        if (!form.name.trim()) e.name = "Введите название занятия";
         if (!form.sport) e.sport = "Выберите вид спорта";
-        if (!form.typeTraining) e.typeTraining = "Выберите тип тренировки";
         if (!form.date) e.date = "Укажите дату";
         if (!form.startTime) e.startTime = "Укажите время начала";
 
@@ -108,7 +125,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         const totalSeconds = hours * 3600 + minutes * 60 + seconds;
 
         if (totalSeconds <= 0) {
-            e.duration = "Введите продолжительность тренировки";
+            e.duration = "Введите продолжительность занятия";
         }
 
         setErrors(e);
@@ -150,6 +167,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
             elevationGainM: form.elevationGainM ? parseInt(form.elevationGainM, 10) : undefined,
             elevationLossM: form.elevationLossM ? parseInt(form.elevationLossM, 10) : undefined,
             calories: form.calories ? parseInt(form.calories, 10) : undefined,
+            isRace: form.isRace,
+            isTest: form.isTest,
         };
 
         onSubmit(payload);
@@ -183,8 +202,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                             <div className="mb-4">
                                 <div className="row g-3">
                                     <div className="col-md-6">
-                                        <label className="form-label fw-medium">
-                                            Имя занятия
+                                        <label className="form-label">
+                                            Имя занятия*
                                         </label>
                                         <input
                                             name="name"
@@ -196,9 +215,9 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                         {errors.name && <div className="invalid-feedback" style={{ fontSize: "0.875rem" }}>{errors.name}</div>}
                                     </div>
 
-                                    <div className="col-md-3">
-                                        <label className="form-label fw-medium">
-                                            Вид спорта
+                                    <div className="col-md-6">
+                                        <label className="form-label">
+                                            Вид спорта*
                                         </label>
                                         <select
                                             name="sport"
@@ -223,22 +242,22 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                         {errors.sport && <div className="invalid-feedback" style={{ fontSize: "0.875rem" }}>{errors.sport}</div>}
                                     </div>
 
-                                    <div className="col-md-3">
-                                        <label className="form-label fw-medium">
+                                    <div className="col-md-6">
+                                        <label className="form-label">
                                             Тип тренировки
                                         </label>
                                         <select
                                             name="typeTraining"
                                             value={form.typeTraining}
                                             onChange={handle}
-                                            className={`form-select ${errors.typeTraining ? "is-invalid" : ""}`}
+                                            className="form-select"
                                             style={{
                                                 borderRadius: "8px",
                                                 padding: "10px 32px 10px 12px",
                                                 overflow: "hidden",
                                                 textOverflow: "ellipsis",
                                                 whiteSpace: "nowrap",
-                                                paddingRight: errors.typeTraining ? "50px" : "32px"
+                                                height: "44px"
                                             }}
                                         >
                                             {TRAINING_TYPES.map((o) => (
@@ -247,12 +266,82 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                 </option>
                                             ))}
                                         </select>
-                                        {errors.typeTraining && <div className="invalid-feedback" style={{ fontSize: "0.875rem" }}>{errors.typeTraining}</div>}
                                     </div>
 
+                                    <div className="col-md-6">
+                                        <label className="form-label">
+                                            Метка
+                                        </label>
+                                        <div className="d-flex gap-2 w-100">
+                                            <div
+                                                onClick={() => setForm(p => ({ ...p, isRace: !p.isRace }))}
+                                                style={{
+                                                    cursor: "pointer",
+                                                    borderRadius: "8px",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: form.isRace ? "500" : "400",
+                                                    backgroundColor: form.isRace ? "#D1001C" : "#f8f9fa",
+                                                    color: form.isRace ? "white" : "#495057",
+                                                    border: form.isRace ? "1px solid #D1001C" : "1px solid #ced4da",
+                                                    transition: "all 0.2s ease",
+                                                    userSelect: "none",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    flex: 1,
+                                                    height: "44px",
+                                                    padding: "0.5rem 0.75rem"
+                                                }}
+                                            >
+                                                <i
+                                                    className="bi bi-trophy me-1"
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        color: form.isRace ? "white" : "#D1001C"
+                                                    }}
+                                                ></i>
+                                                Гонка
+                                            </div>
+
+                                            <div
+                                                onClick={() => setForm(p => ({ ...p, isTest: !p.isTest }))}
+                                                style={{
+                                                    cursor: "pointer",
+                                                    borderRadius: "8px",
+                                                    fontSize: "0.875rem",
+                                                    fontWeight: form.isTest ? "500" : "400",
+                                                    backgroundColor: form.isTest ? "#D1001C" : "#f8f9fa",
+                                                    color: form.isTest ? "white" : "#495057",
+                                                    border: form.isTest ? "1px solid #D1001C" : "1px solid #ced4da",
+                                                    transition: "all 0.2s ease",
+                                                    userSelect: "none",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    flex: 1,
+                                                    height: "44px",
+                                                    padding: "0.5rem 0.75rem"
+                                                }}
+                                            >
+                                                <i
+                                                    className="bi bi-clipboard-data me-1"
+                                                    style={{
+                                                        fontSize: "0.875rem",
+                                                        color: form.isTest ? "white" : "#D1001C"
+                                                    }}
+                                                ></i>
+                                                Контрольная
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <div className="row g-3">
                                     <div className="col-md-4">
-                                        <label className="form-label fw-medium">
-                                            Дата
+                                        <label className="form-label">
+                                            Дата*
                                         </label>
                                         <input
                                             type="date"
@@ -274,8 +363,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     </div>
 
                                     <div className="col-md-4">
-                                        <label className="form-label fw-medium">
-                                            Время начала
+                                        <label className="form-label">
+                                            Время начала*
                                         </label>
                                         <input
                                             type="time"
@@ -297,8 +386,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     </div>
 
                                     <div className="col-md-4">
-                                        <label className="form-label fw-medium">
-                                            Расстояние
+                                        <label className="form-label">
+                                            Расстояние*
                                         </label>
                                         <div className={`input-group ${errors.distanceKm ? "is-invalid" : ""}`}>
                                             <input
@@ -332,8 +421,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                             <div className="mb-4">
                                 <div className="row g-3">
                                     <div className="col-md-12">
-                                        <label className="form-label fw-medium">
-                                            Продолжительность
+                                        <label className="form-label">
+                                            Продолжительность*
                                         </label>
 
                                         <div className="row g-2">
@@ -344,7 +433,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                         value={form.durationHours}
                                                         onChange={handle}
                                                         className="form-control"
-                                                        placeholder="0"
                                                         maxLength={2}
                                                         style={{
                                                             borderRadius: "8px",
@@ -368,7 +456,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                         value={form.durationMinutes}
                                                         onChange={handle}
                                                         className="form-control"
-                                                        placeholder="30"
                                                         maxLength={2}
                                                         style={{
                                                             borderRadius: "8px",
@@ -392,7 +479,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                         value={form.durationSeconds}
                                                         onChange={handle}
                                                         className="form-control"
-                                                        placeholder="0"
                                                         maxLength={2}
                                                         style={{
                                                             borderRadius: "8px",
@@ -415,7 +501,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                                     <div className="col-12">
                                         <label className="form-label">
-                                            Примечания*
+                                            Примечания
                                         </label>
                                         <textarea
                                             name="note"
@@ -456,7 +542,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     <div className="row g-3 mt-3">
                                         <div className="col-md-6">
                                             <label className="form-label">
-                                                Средний пульс*
+                                                Средний пульс
                                             </label>
                                             <div className="input-group">
                                                 <input
@@ -476,7 +562,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                                         <div className="col-md-6">
                                             <label className="form-label">
-                                                Калории*
+                                                Калории
                                             </label>
                                             <div className="input-group">
                                                 <input
@@ -496,7 +582,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                                         <div className="col-md-6">
                                             <label className="form-label">
-                                                Общий подъём*
+                                                Общий подъём
                                             </label>
                                             <div className="input-group">
                                                 <input
@@ -516,7 +602,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                                         <div className="col-md-6">
                                             <label className="form-label">
-                                                Общий спуск*
+                                                Общий спуск
                                             </label>
                                             <div className="input-group">
                                                 <input

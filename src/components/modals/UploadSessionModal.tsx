@@ -17,6 +17,8 @@ export type UploadParsedPayload = {
     elevationLossM?: number;
     calories?: number;
     gpsPoints?: GpsPoint[];
+    isRace?: boolean;
+    isTest?: boolean;
 };
 
 type Props = {
@@ -41,6 +43,8 @@ const calculatePaceFromSpeed = (speedMps: number): number | undefined => {
 const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
     const [error, setError] = useState<string>("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [isRace, setIsRace] = useState(false);
+    const [isTest, setIsTest] = useState(false);
 
     const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
         setError("");
@@ -152,6 +156,8 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                 elevationLossM: parsed.total_descent,
                 calories: parsed.calories,
                 gpsPoints: gpsPoints.length > 0 ? gpsPoints : undefined,
+                isRace: isRace,
+                isTest: isTest,
             };
 
             onParsed(payload);
@@ -180,6 +186,70 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                             />
                             <div className="form-text mt-1">
                                 Поддерживаются форматы: .fit, .tcx, .gpx, .csv
+                            </div>
+                        </div>
+
+                        <div className="mb-4">
+                            <div className="d-flex gap-2 w-100">
+                                <div
+                                    onClick={() => setIsRace(!isRace)}
+                                    style={{
+                                        cursor: "pointer",
+                                        borderRadius: "8px",
+                                        fontSize: "0.875rem",
+                                        fontWeight: isRace ? "500" : "400",
+                                        backgroundColor: isRace ? "#D1001C" : "#f8f9fa",
+                                        color: isRace ? "white" : "#495057",
+                                        border: isRace ? "1px solid #D1001C" : "1px solid #ced4da",
+                                        transition: "all 0.2s ease",
+                                        userSelect: "none",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flex: 1,
+                                        height: "44px",
+                                        padding: "0.5rem 0.75rem"
+                                    }}
+                                >
+                                    <i
+                                        className="bi bi-trophy me-1"
+                                        style={{
+                                            fontSize: "0.875rem",
+                                            color: isRace ? "white" : "#D1001C"
+                                        }}
+                                    ></i>
+                                    Гонка
+                                </div>
+
+                                <div
+                                    onClick={() => setIsTest(!isTest)}
+                                    style={{
+                                        cursor: "pointer",
+                                        borderRadius: "8px",
+                                        fontSize: "0.875rem",
+                                        fontWeight: isTest ? "500" : "400",
+                                        backgroundColor: isTest ? "#D1001C" : "#f8f9fa",
+                                        color: isTest ? "white" : "#495057",
+                                        border: isTest ? "1px solid #D1001C" : "1px solid #ced4da",
+                                        transition: "all 0.2s ease",
+                                        userSelect: "none",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        flex: 1,
+                                        height: "44px",
+                                        padding: "0.5rem 0.75rem"
+                                    }}
+                                >
+                                    <i
+                                        className="bi bi-clipboard-data me-1"
+                                        style={{
+                                            fontSize: "0.875rem",
+                                            color: isTest ? "white" : "#D1001C"
+                                        }}
+                                    ></i>
+                                    Контрольная
+                                </div>
                             </div>
                         </div>
 

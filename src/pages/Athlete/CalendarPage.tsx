@@ -89,7 +89,6 @@ const AthleteCalendarPage: React.FC = () => {
 
     const goPrev = () => calendarRef.current?.getApi().prev();
     const goNext = () => calendarRef.current?.getApi().next();
-    const onDatesSet = (arg: any) => setTitle(arg.view.title);
 
     const onCreateSubmit = (payload: CreateSessionPayload) => {
         setTrainings((prev) => [
@@ -151,6 +150,47 @@ const AthleteCalendarPage: React.FC = () => {
         e.preventDefault();
         setSelectedTraining(training);
     };
+    const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
+
+    const onDatesSet = (arg: any) => {
+        setTitle(arg.view.title);
+        setCurrentDateRange({
+            start: arg.view.currentStart,
+            end: arg.view.currentEnd
+        });
+    };
+
+    const stats = useMemo(() => {
+        if (!currentDateRange) return {
+            totalTrainings: 0,
+            totalDistance: 0,
+            totalTime: 0,
+            totalCalories: 0
+        };
+
+        const { start, end } = currentDateRange;
+
+        const filteredTrainings = trainings.filter(training => {
+            const trainingDate = new Date(training.date);
+            return trainingDate >= start && trainingDate < end;
+        });
+
+        const stats = {
+            totalTrainings: 0,
+            totalDistance: 0,
+            totalTime: 0,
+            totalCalories: 0
+        };
+
+        filteredTrainings.forEach(training => {
+            stats.totalTrainings++;
+            if (training.distanceKm) stats.totalDistance += training.distanceKm;
+            if (training.durationSec) stats.totalTime += training.durationSec;
+            if (training.calories) stats.totalCalories += training.calories;
+        });
+
+        return stats;
+    }, [trainings, currentDateRange]);
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--trey-bg)" as any }}>
@@ -327,6 +367,35 @@ const AthleteCalendarPage: React.FC = () => {
                                 );
                             }}
                         />
+
+                        <div className="trey-calendar-stats mt-4 pt-3 border-top">
+                            <div className="row g-3">
+                                <div className="col-6 col-md-3">
+                                    <div className="text-center">
+                                        <div className="fs-5 fw-bold">{stats.totalTrainings}</div>
+                                        <div className="text-muted small">Занятий</div>
+                                    </div>
+                                </div>
+                                <div className="col-6 col-md-3">
+                                    <div className="text-center">
+                                        <div className="fs-5 fw-bold">{stats.totalDistance.toFixed(1)}</div>
+                                        <div className="text-muted small">км</div>
+                                    </div>
+                                </div>
+                                <div className="col-6 col-md-3">
+                                    <div className="text-center">
+                                        <div className="fs-5 fw-bold">{formatHms(stats.totalTime)}</div>
+                                        <div className="text-muted small">Время</div>
+                                    </div>
+                                </div>
+                                <div className="col-6 col-md-3">
+                                    <div className="text-center">
+                                        <div className="fs-5 fw-bold">{stats.totalCalories}</div>
+                                        <div className="text-muted small">ккал</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </main>
