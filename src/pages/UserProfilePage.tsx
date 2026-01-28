@@ -1,6 +1,6 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import { useNavigate } from 'react-router-dom';
 
 const UserProfilePage: React.FC = () => {
     const navigate = useNavigate();
@@ -71,6 +71,7 @@ const UserProfilePage: React.FC = () => {
                                                 outline: "none",
                                                 boxShadow: "none"
                                             }}
+                                            onClick={() => navigate('/settings')}
                                         >
                                             <i className="bi bi-pencil me-2"></i>
                                             Редактировать профиль

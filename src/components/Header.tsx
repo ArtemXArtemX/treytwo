@@ -86,10 +86,12 @@ const Header: React.FC<Props> = ({ active = "calendar" }) => {
                                 <i className="bi bi-person me-2"></i>
                                 Профиль
                             </Link>
-                            <a className="dropdown-item" href="#">
+
+                            <Link to="/settings" className="dropdown-item">
                                 <i className="bi bi-gear me-2"></i>
                                 Настройки
-                            </a>
+                            </Link>
+
                             <div className="dropdown-divider"></div>
                             <button className="dropdown-item text-danger">
                                 <i className="bi bi-box-arrow-right me-2"></i>

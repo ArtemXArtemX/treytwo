@@ -5,6 +5,7 @@ import RegistrationPage from "./pages/Auth/RegistrationPage";
 import Footer from "./components/Footer";
 import CalendarPage from "./pages/Athlete/CalendarPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import SettingsPage from './pages/SettingsPage';
 
 const App: React.FC = () => {
     return (
@@ -19,6 +20,7 @@ const App: React.FC = () => {
                         <Route path="/register" element={<RegistrationPage />} />
                         <Route path="/calendar" element={<CalendarPage />} />
                         <Route path="/profile" element={<UserProfilePage />} />
+                        <Route path="/settings" element={<SettingsPage />} />
                     </Routes>
                 </main>
 
