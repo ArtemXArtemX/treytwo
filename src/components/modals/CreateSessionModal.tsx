@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
+import React, { useState, ChangeEvent, FormEvent } from "react";
 
 export type CreateSessionPayload = {
     date: string;
@@ -33,6 +33,7 @@ const SPORT_OPTIONS = [
 
 const TRAINING_TYPES = [
     { value: "", label: "Выберите тип тренировки" },
+    { value: "control", label: "Контрольный старт" },
     { value: "interval", label: "Интервальная" },
     { value: "tempo", label: "Темповая" },
     { value: "long", label: "Длительная" },
@@ -74,8 +75,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         calories: "",
         elevationGainM: "",
         elevationLossM: "",
-        isRace: false,
-        isTest: false,
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -83,10 +82,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const handle = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
 
-        if (type === "checkbox") {
-            const checkbox = e.target as HTMLInputElement;
-            setForm((p) => ({ ...p, [name]: checkbox.checked }));
-        } else if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM"].includes(name)) {
+        if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM"].includes(name)) {
             if (value === "" || /^\d*$/.test(value)) {
                 const numValue = value === "" ? "" : value;
                 setForm((p) => ({ ...p, [name]: numValue }));
@@ -167,8 +163,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
             elevationGainM: form.elevationGainM ? parseInt(form.elevationGainM, 10) : undefined,
             elevationLossM: form.elevationLossM ? parseInt(form.elevationLossM, 10) : undefined,
             calories: form.calories ? parseInt(form.calories, 10) : undefined,
-            isRace: form.isRace,
-            isTest: form.isTest,
+            isRace: false,
+            isTest: false,
         };
 
         onSubmit(payload);
@@ -269,70 +265,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     </div>
 
                                     <div className="col-md-6">
-                                        <label className="form-label">
-                                            Метка
-                                        </label>
-                                        <div className="d-flex gap-2 w-100">
-                                            <div
-                                                onClick={() => setForm(p => ({ ...p, isRace: !p.isRace }))}
-                                                style={{
-                                                    cursor: "pointer",
-                                                    borderRadius: "8px",
-                                                    fontSize: "0.875rem",
-                                                    fontWeight: form.isRace ? "500" : "400",
-                                                    backgroundColor: form.isRace ? "#D1001C" : "#f8f9fa",
-                                                    color: form.isRace ? "white" : "#495057",
-                                                    border: form.isRace ? "1px solid #D1001C" : "1px solid #ced4da",
-                                                    transition: "all 0.2s ease",
-                                                    userSelect: "none",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    flex: 1,
-                                                    height: "44px",
-                                                    padding: "0.5rem 0.75rem"
-                                                }}
-                                            >
-                                                <i
-                                                    className="bi bi-trophy me-1"
-                                                    style={{
-                                                        fontSize: "0.875rem",
-                                                        color: form.isRace ? "white" : "#D1001C"
-                                                    }}
-                                                ></i>
-                                                Гонка
-                                            </div>
-
-                                            <div
-                                                onClick={() => setForm(p => ({ ...p, isTest: !p.isTest }))}
-                                                style={{
-                                                    cursor: "pointer",
-                                                    borderRadius: "8px",
-                                                    fontSize: "0.875rem",
-                                                    fontWeight: form.isTest ? "500" : "400",
-                                                    backgroundColor: form.isTest ? "#D1001C" : "#f8f9fa",
-                                                    color: form.isTest ? "white" : "#495057",
-                                                    border: form.isTest ? "1px solid #D1001C" : "1px solid #ced4da",
-                                                    transition: "all 0.2s ease",
-                                                    userSelect: "none",
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    justifyContent: "center",
-                                                    flex: 1,
-                                                    height: "44px",
-                                                    padding: "0.5rem 0.75rem"
-                                                }}
-                                            >
-                                                <i
-                                                    className="bi bi-clipboard-data me-1"
-                                                    style={{
-                                                        fontSize: "0.875rem",
-                                                        color: form.isTest ? "white" : "#D1001C"
-                                                    }}
-                                                ></i>
-                                                Контрольная
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -535,7 +467,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     }}
                                 >
                                     {openStats ? "Скрыть статистику" : "Дополнительная статистика"}
-                                    <i className={`bi ${openStats ? "bi-chevron-up" : "bi-chevron-down"}`}></i>
                                 </button>
 
                                 {openStats && (
@@ -656,7 +587,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                     border: "none"
                                 }}
                             >
-                                Создать тренировку
+                                Создать занятие
                             </button>
                         </div>
                     </form>

@@ -222,15 +222,6 @@ const SettingsPage: React.FC = () => {
                                                 Не указано
                                             </div>
                                         </div>
-
-                                        <div className="col-md-6 mb-3">
-                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Город
-                                            </label>
-                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                Не указано
-                                            </div>
-                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -405,20 +396,56 @@ const SettingsPage: React.FC = () => {
                                             Пульсовые зоны
                                         </h6>
                                         <div className="table-responsive">
-                                            <table className="table" style={{ border: "1px solid #e7eaf0", borderRadius: "8px" }}>
+                                            <table
+                                                className="table"
+                                                style={{
+                                                    border: "1px solid #e7eaf0",
+                                                    borderRadius: "8px",
+                                                    tableLayout: "fixed"
+                                                }}
+                                            >
                                                 <thead style={{ backgroundColor: "#f8f9fa" }}>
                                                 <tr>
-                                                    <th style={{ color: "#666", fontWeight: 500, padding: "12px 15px", border: "none" }}>Зона</th>
-                                                    <th style={{ color: "#666", fontWeight: 500, padding: "12px 15px", border: "none" }}>Диапазон (уд/мин)</th>
+                                                    <th style={{
+                                                        color: "#666",
+                                                        fontWeight: 500,
+                                                        padding: "12px 15px",
+                                                        border: "none",
+                                                        width: "50%",
+                                                        textAlign: "left"
+                                                    }}>
+                                                        Зона
+                                                    </th>
+                                                    <th style={{
+                                                        color: "#666",
+                                                        fontWeight: 500,
+                                                        padding: "12px 15px",
+                                                        border: "none",
+                                                        width: "50%",
+                                                        textAlign: "left"
+                                                    }}>
+                                                        Диапазон (уд/мин)
+                                                    </th>
                                                 </tr>
                                                 </thead>
                                                 <tbody>
                                                 {heartRateZones.map((zone) => (
                                                     <tr key={zone.id} style={{ borderTop: "1px solid #e7eaf0" }}>
-                                                        <td style={{ padding: "12px 15px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                        <td style={{
+                                                            padding: "12px 15px",
+                                                            color: "#1a1a1a",
+                                                            fontWeight: 500,
+                                                            width: "50%",
+                                                            textAlign: "left"
+                                                        }}>
                                                             Зона {zone.id}
                                                         </td>
-                                                        <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                        <td style={{
+                                                            padding: "12px 15px",
+                                                            color: "#1a1a1a",
+                                                            width: "50%",
+                                                            textAlign: "left"
+                                                        }}>
                                                             {zone.min} - {zone.max} уд/мин
                                                         </td>
                                                     </tr>

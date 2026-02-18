@@ -19,6 +19,15 @@ export type UploadParsedPayload = {
     gpsPoints?: GpsPoint[];
     isRace?: boolean;
     isTest?: boolean;
+    comment_sportsmen?: string;
+    stress_score?: number;
+    feeling_score?: number;
+    type_training_id?: number;
+    name_training?: string;
+    coach_creator?: string | null;
+    planned_training?: boolean;
+    sportsmen_id?: number;
+    sport_id?: number;
 };
 
 type Props = {
@@ -40,11 +49,45 @@ const calculatePaceFromSpeed = (speedMps: number): number | undefined => {
     return Math.round(paceSecPerKm);
 };
 
+// Константы из вашего кода
+const SPORT_OPTIONS = [
+    { value: "", label: "Выберите вид спорта" },
+    { value: "orienteering", label: "Ориентирование" },
+    { value: "running", label: "Бег" },
+    { value: "trail", label: "Трейл" },
+    { value: "other", label: "Другое" },
+];
+
+const TRAINING_TYPES = [
+    { value: "", label: "Выберите тип тренировки" },
+    { value: "control", label: "Контрольный старт" },
+    { value: "interval", label: "Интервальная" },
+    { value: "tempo", label: "Темповая" },
+    { value: "long", label: "Длительная" },
+    { value: "recovery", label: "Восстановительная" },
+    { value: "steady", label: "Поддерживающая" },
+    { value: "other", label: "Другое" },
+];
+
 const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
     const [error, setError] = useState<string>("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [isRace, setIsRace] = useState(false);
-    const [isTest, setIsTest] = useState(false);
+
+    // Новые состояния для формы ввода данных
+    const [showDataForm, setShowDataForm] = useState(false);
+    const [formData, setFormData] = useState({
+        comment_sportsmen: "",
+        stress_score: 0,
+        feeling_score: 0, // Без выбора по умолчанию
+        type_training_id: "",
+        name_training: "",
+        sport_id: "",
+    });
+
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+    // Данные из распарсенного файла
+    const [parsedData, setParsedData] = useState<any>(null);
 
     const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
         setError("");
@@ -59,7 +102,7 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
         setSelectedFile(file);
     };
 
-    const handleUpload = async () => {
+    const parseFile = async () => {
         if (!selectedFile) {
             setError("Выберите файл");
             return;
@@ -70,12 +113,39 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
         try {
             const text = await selectedFile.text();
             const parsed = JSON.parse(text);
+            setParsedData(parsed);
 
+            // Показываем форму для ввода дополнительных данных
+            setShowDataForm(true);
+        } catch (err: any) {
+            setError(`Ошибка при обработке файла: ${err.message}`);
+        }
+    };
+
+    const validateForm = () => {
+        const errors: Record<string, string> = {};
+
+        if (!formData.sport_id) {
+            errors.sport_id = "Выберите вид спорта";
+        }
+
+        if (!formData.type_training_id) {
+            errors.type_training_id = "Выберите тип тренировки";
+        }
+
+        setFormErrors(errors);
+        return Object.keys(errors).length === 0;
+    };
+
+    const handleFormSubmit = () => {
+        if (!parsedData || !validateForm()) return;
+
+        try {
             let date: string;
-            if (parsed.time_start) {
-                date = parsed.time_start.split('T')[0];
-            } else if (parsed.training_gps_hr_points && parsed.training_gps_hr_points.length > 0) {
-                const firstPoint = parsed.training_gps_hr_points[0];
+            if (parsedData.time_start) {
+                date = parsedData.time_start.split('T')[0];
+            } else if (parsedData.training_gps_hr_points && parsedData.training_gps_hr_points.length > 0) {
+                const firstPoint = parsedData.training_gps_hr_points[0];
                 date = firstPoint.duration_point ?
                     firstPoint.duration_point.split('T')[0] :
                     new Date().toISOString().split('T')[0];
@@ -83,29 +153,29 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                 date = new Date().toISOString().split('T')[0];
             }
 
-            const startTime = parsed.time_start ?
-                parsed.time_start.split('T')[1].substring(0, 8) :
+            const startTime = parsedData.time_start ?
+                parsedData.time_start.split('T')[1].substring(0, 8) :
                 undefined;
 
-            const distanceKm = parsed.distance ?
-                parseFloat((parsed.distance / 1000).toFixed(2)) :
+            const distanceKm = parsedData.distance ?
+                parseFloat((parsedData.distance / 1000).toFixed(2)) :
                 undefined;
 
-            const durationSec = parsed.duration ?
-                Math.round(parsed.duration) :
+            const durationSec = parsedData.duration ?
+                Math.round(parsedData.duration) :
                 undefined;
 
-            const avgPaceSecPerKm = parsed.avg_speed ?
-                calculatePaceFromSpeed(parsed.avg_speed) :
+            const avgPaceSecPerKm = parsedData.avg_speed ?
+                calculatePaceFromSpeed(parsedData.avg_speed) :
                 undefined;
 
             let gpsPoints: GpsPoint[] = [];
 
-            if (parsed.training_gps_hr_points && Array.isArray(parsed.training_gps_hr_points)) {
+            if (parsedData.training_gps_hr_points && Array.isArray(parsedData.training_gps_hr_points)) {
                 const maxPoints = 500;
-                const step = Math.max(1, Math.floor(parsed.training_gps_hr_points.length / maxPoints));
+                const step = Math.max(1, Math.floor(parsedData.training_gps_hr_points.length / maxPoints));
 
-                parsed.training_gps_hr_points.forEach((point: any, index: number) => {
+                parsedData.training_gps_hr_points.forEach((point: any, index: number) => {
                     if (index % step === 0 && point.latitude !== undefined && point.longitude !== undefined) {
                         let lat: number;
                         let lon: number;
@@ -125,54 +195,356 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                 });
             }
 
-            if (parsed.start_position_lat && parsed.start_position_long && gpsPoints.length === 0) {
+            if (parsedData.start_position_lat && parsedData.start_position_long && gpsPoints.length === 0) {
                 let startLat: number;
                 let startLon: number;
 
-                if (isSemicircleCoordinate(parsed.start_position_lat)) {
-                    startLat = semicirclesToDegrees(parsed.start_position_lat);
-                    startLon = semicirclesToDegrees(parsed.start_position_long);
+                if (isSemicircleCoordinate(parsedData.start_position_lat)) {
+                    startLat = semicirclesToDegrees(parsedData.start_position_lat);
+                    startLon = semicirclesToDegrees(parsedData.start_position_long);
                 } else {
-                    startLat = parsed.start_position_lat;
-                    startLon = parsed.start_position_long;
+                    startLat = parsedData.start_position_lat;
+                    startLon = parsedData.start_position_long;
                 }
 
                 gpsPoints.push({ lat: startLat, lon: startLon });
             }
 
+            // Маппинг sport значений на ID
+            const sportIdMap: Record<string, number> = {
+                "orienteering": 1,
+                "running": 2,
+                "trail": 3,
+                "other": 4
+            };
+
+            // Маппинг typeTraining значений на ID
+            const trainingTypeIdMap: Record<string, number> = {
+                "control": 1,
+                "interval": 2,
+                "tempo": 3,
+                "long": 4,
+                "recovery": 5,
+                "steady": 6,
+                "other": 7
+            };
+
+            // Используем sport_id из формы или маппим из parsedData
+            const sportId = formData.sport_id ?
+                sportIdMap[formData.sport_id] || 2 :
+                (parsedData.sport && sportIdMap[parsedData.sport]) || 2;
+
+            // Используем type_training_id из формы или маппим из parsedData
+            const typeTrainingId = formData.type_training_id ?
+                trainingTypeIdMap[formData.type_training_id] || 1 :
+                (parsedData.typeTraining && trainingTypeIdMap[parsedData.typeTraining]) || 1;
+
+            // Получаем текстовые значения для отображения
+            const sportText = formData.sport_id ?
+                SPORT_OPTIONS.find(s => s.value === formData.sport_id)?.label || "Бег" : "Бег";
+
+            const typeTrainingText = formData.type_training_id ?
+                TRAINING_TYPES.find(t => t.value === formData.type_training_id)?.label || "Контрольный старт" :
+                "Контрольный старт";
+
             const payload: UploadParsedPayload = {
                 date: date,
-                status: "done",
-                name: parsed.name || "Импортированная тренировка",
-                sport: parsed.sport_id || "running",
-                typeTraining: parsed.type_training_id ? String(parsed.type_training_id) : "1",
-                note: `Импортировано из файла ${selectedFile.name}.${distanceKm ? ` Дистанция: ${distanceKm} км.` : ''}${durationSec ? ` Время: ${Math.floor(durationSec / 60)} мин.` : ''}${gpsPoints.length ? ` GPS точек: ${gpsPoints.length}.` : ''}`,
+                status: "done", // Всегда done при загрузке
+                name: parsedData.name || "Импортированная тренировка",
+                sport: sportText,
+                typeTraining: typeTrainingText,
+                note: `Импортировано из файла ${selectedFile?.name}.${distanceKm ? ` Дистанция: ${distanceKm} км.` : ''}${durationSec ? ` Время: ${Math.floor(durationSec / 60)} мин.` : ''}${gpsPoints.length ? ` GPS точек: ${gpsPoints.length}.` : ''}${formData.comment_sportsmen ? `\n${formData.comment_sportsmen}` : ''}`,
                 startTime: startTime,
                 distanceKm: distanceKm,
                 durationSec: durationSec,
-                avgHr: parsed.avg_heart_rate,
+                avgHr: parsedData.avg_heart_rate,
                 avgPaceSecPerKm: avgPaceSecPerKm,
-                elevationGainM: parsed.total_ascent,
-                elevationLossM: parsed.total_descent,
-                calories: parsed.calories,
+                elevationGainM: parsedData.total_ascent,
+                elevationLossM: parsedData.total_descent,
+                calories: parsedData.calories,
                 gpsPoints: gpsPoints.length > 0 ? gpsPoints : undefined,
-                isRace: isRace,
-                isTest: isTest,
+                isRace: false,
+                isTest: false,
+
+                // Данные из формы - исправлены типы
+                comment_sportsmen: formData.comment_sportsmen || undefined,
+                stress_score: formData.stress_score,
+                feeling_score: formData.feeling_score || undefined,
+                type_training_id: typeTrainingId,
+                name_training: formData.name_training || undefined,
+                coach_creator: null, // Пока не заполняем
+                planned_training: false, // Всегда false при загрузке
+                sportsmen_id: parsedData.sportsmen_id,
+                sport_id: sportId,
             };
 
             onParsed(payload);
             onClose();
         } catch (err: any) {
-            setError(`Ошибка при обработке файла: ${err.message}`);
+            setError(`Ошибка при обработке данных: ${err.message}`);
         }
     };
 
+    const handleFormChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value } = e.target;
+
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+
+        // Очищаем ошибку при изменении
+        if (formErrors[name]) {
+            setFormErrors(prev => ({
+                ...prev,
+                [name]: ""
+            }));
+        }
+    };
+
+    const feelingLabels = [
+        { value: 1, label: "😫 Очень слабым" },
+        { value: 2, label: "😔 Слабым" },
+        { value: 3, label: "😐 Нормально" },
+        { value: 4, label: "😊 Сильным" },
+        { value: 5, label: "😁 Очень сильным" }
+    ];
+
+    // Если показана форма ввода данных
+    if (showDataForm && parsedData) {
+        return (
+            <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
+                <div className="modal-dialog modal-dialog-centered modal-lg" role="document">
+                    <div className="modal-content" style={{ borderRadius: 16, border: "none" }}>
+                        <div className="modal-header" style={{
+                            borderBottom: "1px solid #e9ecef",
+                            padding: "1.5rem 1.5rem 1rem"
+                        }}>
+                            <h5 className="modal-title" style={{ fontSize: "1.25rem", fontWeight: 600 }}>Введите данные о занятие</h5>
+                            <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
+                        </div>
+
+                        <div className="modal-body" style={{ padding: "1.5rem" }}>
+                            {error && <div className="alert alert-danger">{error}</div>}
+
+                            <div className="mb-4">
+                                <div className="row g-3">
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Имя занятия
+                                        </label>
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            name="name_training"
+                                            value={formData.name_training}
+                                            onChange={handleFormChange}
+                                            style={{
+                                                borderRadius: "8px",
+                                                padding: "10px 12px",
+                                                fontSize: "0.875rem"
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div className="col-md-6">
+                                        <label className="form-label">
+                                            Тип тренировки*
+                                        </label>
+                                        <select
+                                            name="type_training_id"
+                                            value={formData.type_training_id}
+                                            onChange={handleFormChange}
+                                            className={`form-select ${formErrors.type_training_id ? "is-invalid" : ""}`}
+                                            style={{
+                                                borderRadius: "8px",
+                                                padding: "10px 32px 10px 12px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                paddingRight: formErrors.type_training_id ? "50px" : "32px",
+                                                height: "44px"
+                                            }}
+                                        >
+                                            {TRAINING_TYPES.map((o) => (
+                                                <option key={o.value} value={o.value}>
+                                                    {o.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {formErrors.type_training_id && (
+                                            <div className="d-flex align-items-center text-danger mt-1" style={{ fontSize: "0.875rem" }}>
+                                                {formErrors.type_training_id}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="col-md-6">
+                                        <label className="form-label">
+                                            Вид спорта*
+                                        </label>
+                                        <select
+                                            name="sport_id"
+                                            value={formData.sport_id}
+                                            onChange={handleFormChange}
+                                            className={`form-select ${formErrors.sport_id ? "is-invalid" : ""}`}
+                                            style={{
+                                                borderRadius: "8px",
+                                                padding: "10px 32px 10px 12px",
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
+                                                paddingRight: formErrors.sport_id ? "50px" : "32px",
+                                                height: "44px"
+                                            }}
+                                        >
+                                            {SPORT_OPTIONS.map((o) => (
+                                                <option key={o.value} value={o.value}>
+                                                    {o.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        {formErrors.sport_id && (
+                                            <div className="d-flex align-items-center text-danger mt-1" style={{ fontSize: "0.875rem" }}>
+                                                {formErrors.sport_id}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Воспринимаемые усилия
+                                        </label>
+                                        <div className="d-flex align-items-center">
+                                            <input
+                                                type="range"
+                                                className="form-range"
+                                                min="0"
+                                                max="10"
+                                                step="1"
+                                                name="stress_score"
+                                                value={formData.stress_score}
+                                                onChange={(e) => {
+                                                    const value = Number(e.target.value);
+                                                    setFormData(prev => ({ ...prev, stress_score: value }));
+                                                    e.target.style.setProperty('--range-progress', `${(value / 10) * 100}%`);
+                                                }}
+                                                style={{
+                                                    '--range-progress': `${(formData.stress_score / 10) * 100}%`
+                                                } as React.CSSProperties}
+                                            />
+                                            <span className="ms-3 fw-bold" style={{ minWidth: "30px", textAlign: "center" }}>{formData.stress_score}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Как вы себя чувствовали?
+                                        </label>
+                                        <div className="d-flex flex-wrap" style={{ gap: "0.5rem" }}>
+                                            {feelingLabels.map(feeling => (
+                                                <button
+                                                    key={feeling.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setFormData(prev => ({
+                                                            ...prev,
+                                                            feeling_score: prev.feeling_score === feeling.value ? 0 : feeling.value
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        flex: "1 1 0",
+                                                        minWidth: "0",
+                                                        borderRadius: "8px",
+                                                        padding: "10px 8px",
+                                                        border: "1px solid #D1001C",
+                                                        backgroundColor: formData.feeling_score === feeling.value ? "#D1001C" : "transparent",
+                                                        color: formData.feeling_score === feeling.value ? "white" : "#D1001C",
+                                                        fontSize: "0.875rem",
+                                                        cursor: "pointer",
+                                                        outline: "none",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "center"
+                                                    }}
+                                                >
+                                                    {feeling.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Примечания
+                                        </label>
+                                        <textarea
+                                            className="form-control"
+                                            name="comment_sportsmen"
+                                            value={formData.comment_sportsmen}
+                                            onChange={handleFormChange}
+                                            rows={3}
+                                            placeholder="Как прошла тренировка?"
+                                            style={{
+                                                borderRadius: "8px",
+                                                padding: "10px 12px",
+                                                fontSize: "0.875rem"
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="modal-footer" style={{
+                            borderTop: "1px solid #e9ecef",
+                            padding: "1rem 1.5rem"
+                        }}>
+                            <button
+                                type="button"
+                                onClick={() => setShowDataForm(false)}
+                                style={{
+                                    borderRadius: "8px",
+                                    padding: "10px 20px",
+                                    fontWeight: 500,
+                                    backgroundColor: "transparent",
+                                    color: "#6c757d",
+                                    border: "1px solid #6c757d",
+                                    cursor: "pointer",
+                                    outline: "none",
+                                    boxShadow: "none"
+                                }}
+                            >
+                                Назад
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleFormSubmit}
+                                style={{
+                                    borderRadius: "8px",
+                                    padding: "10px 20px",
+                                    fontWeight: 600,
+                                    backgroundColor: "#D1001C",
+                                    border: "none",
+                                    color: "white",
+                                    cursor: "pointer"
+                                }}
+                            >
+                                Сохранить занятие
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Изначальный вид - загрузка файла
     return (
         <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
             <div className="modal-dialog modal-dialog-centered">
                 <div className="modal-content" style={{ borderRadius: 8 }}>
                     <div className="modal-header">
-                        <h5 className="modal-title">Загрузить тренировку</h5>
+                        <h5 className="modal-title">Загрузить занятие</h5>
                         <button type="button" className="btn-close" onClick={onClose} />
                     </div>
 
@@ -183,76 +555,15 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                                 type="file"
                                 accept=".json,.txt"
                                 onChange={handleFileSelect}
+                                style={{
+                                    borderRadius: "8px",
+                                    padding: "10px 12px"
+                                }}
                             />
                             <div className="form-text mt-1">
-                                Поддерживаются форматы: .fit, .tcx, .gpx, .csv
+                                Поддерживаются форматы: .fit, .tcx, .gpx
                             </div>
                         </div>
-
-                        <div className="mb-4">
-                            <div className="d-flex gap-2 w-100">
-                                <div
-                                    onClick={() => setIsRace(!isRace)}
-                                    style={{
-                                        cursor: "pointer",
-                                        borderRadius: "8px",
-                                        fontSize: "0.875rem",
-                                        fontWeight: isRace ? "500" : "400",
-                                        backgroundColor: isRace ? "#D1001C" : "#f8f9fa",
-                                        color: isRace ? "white" : "#495057",
-                                        border: isRace ? "1px solid #D1001C" : "1px solid #ced4da",
-                                        transition: "all 0.2s ease",
-                                        userSelect: "none",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        flex: 1,
-                                        height: "44px",
-                                        padding: "0.5rem 0.75rem"
-                                    }}
-                                >
-                                    <i
-                                        className="bi bi-trophy me-1"
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: isRace ? "white" : "#D1001C"
-                                        }}
-                                    ></i>
-                                    Гонка
-                                </div>
-
-                                <div
-                                    onClick={() => setIsTest(!isTest)}
-                                    style={{
-                                        cursor: "pointer",
-                                        borderRadius: "8px",
-                                        fontSize: "0.875rem",
-                                        fontWeight: isTest ? "500" : "400",
-                                        backgroundColor: isTest ? "#D1001C" : "#f8f9fa",
-                                        color: isTest ? "white" : "#495057",
-                                        border: isTest ? "1px solid #D1001C" : "1px solid #ced4da",
-                                        transition: "all 0.2s ease",
-                                        userSelect: "none",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        flex: 1,
-                                        height: "44px",
-                                        padding: "0.5rem 0.75rem"
-                                    }}
-                                >
-                                    <i
-                                        className="bi bi-clipboard-data me-1"
-                                        style={{
-                                            fontSize: "0.875rem",
-                                            color: isTest ? "white" : "#D1001C"
-                                        }}
-                                    ></i>
-                                    Контрольная
-                                </div>
-                            </div>
-                        </div>
-
                         {error && <div className="text-danger mb-3">{error}</div>}
                     </div>
 
@@ -276,7 +587,7 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                         </button>
                         <button
                             type="button"
-                            onClick={handleUpload}
+                            onClick={parseFile}
                             disabled={!selectedFile}
                             style={{
                                 borderRadius: "8px",
@@ -289,7 +600,7 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                                 opacity: selectedFile ? 1 : 0.65
                             }}
                         >
-                            Загрузить тренировку
+                            Далее
                         </button>
                     </div>
                 </div>
