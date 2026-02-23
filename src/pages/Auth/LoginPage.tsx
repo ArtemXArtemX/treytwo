@@ -1,17 +1,13 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "../../assets/logo.svg";
+import { apiFetch } from "../../api/http";
 
 interface LoginForm {
     email: string;
     password: string;
     remember: boolean;
 }
-
-const MOCK_USER = {
-    email: "coach@mail.ru",
-    password: "12345678",
-};
 
 const LoginPage: React.FC = () => {
     const [form, setForm] = useState<LoginForm>({
@@ -33,20 +29,36 @@ const LoginPage: React.FC = () => {
         setSuccess(null);
     };
 
-    const handleSubmit = (e: React.FormEvent<HTMLFormElement>): void => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        setError(null);
+        setSuccess(null);
 
-        if (
-            form.email === MOCK_USER.email &&
-            form.password === MOCK_USER.password
-        ) {
-            setError(null);
-            setSuccess("Успешный вход.");
-            console.log("LOGIN SUCCESS:", form);
-        } else {
-            setSuccess(null);
-            setError("Неверный логин или пароль.");
-            console.log("LOGIN FAILED:", form);
+        try {
+            const result = await apiFetch<any>("/api/User/Auth", {
+                method: "POST",
+                body: JSON.stringify({
+                    login: form.email,
+                    password: form.password,
+                }),
+            });
+
+            console.log("Данные от сервера:", result); // ПОСМОТРИ В КОНСОЛЬ
+
+            localStorage.setItem("user", JSON.stringify(result));
+
+            if (result.id) {
+                localStorage.setItem("userId", String(result.id));
+            }
+
+            localStorage.setItem("token", result.token);
+            localStorage.setItem("userId", String(result.userId));
+
+            setSuccess("Успешный вход");
+
+        } catch (err: any) {
+            console.error(err);
+            setError("Неверный логин или пароль");
         }
     };
 

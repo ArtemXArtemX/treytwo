@@ -1,6 +1,7 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.svg";
+import { apiFetch } from "../../api/http";
 
 type Role = "athlete" | "coach";
 
@@ -17,6 +18,11 @@ interface RegistrationForm {
     sportType: string;
     birthDate?: string;
     gender?: "male" | "female" | "other";
+    height: string;      // добавил
+    weight: string;      // добавил
+    hr_rest: string;     // добавил
+    hr_max: string;      // добавил
+    pace_max: string;    // добавил
 }
 
 const SPORT_OPTIONS = [
@@ -45,6 +51,11 @@ const RegistrationPage: React.FC = () => {
         sportType: "",
         birthDate: "",
         gender: "other",
+        height: "",        // добавил
+        weight: "",        // добавил
+        hr_rest: "60",     // добавил со значением по умолчанию
+        hr_max: "180",     // добавил со значением по умолчанию
+        pace_max: "",      // добавил
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,33 +99,49 @@ const RegistrationPage: React.FC = () => {
             err.gender = "Выберите пол";
         }
 
+        if (!form.height) err.height = "Укажите рост";
+        else if (Number(form.height) < 50 || Number(form.height) > 250)
+            err.height = "Рост должен быть от 50 до 250 см";
+
+        if (!form.weight) err.weight = "Укажите вес";
+        else if (Number(form.weight) < 20 || Number(form.weight) > 300)
+            err.weight = "Вес должен быть от 20 до 300 кг";
+
         setErrors(err);
         return Object.keys(err).length === 0;
     };
 
-    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
-        if (!validate()) {
-            window.scrollTo({ top: 0, behavior: "smooth" });
-            return;
+        if (!validate()) return;
+
+        try {
+            await apiFetch("/api/User/Create", {
+                method: "POST",
+                body: JSON.stringify({
+                    id: 0,
+                    user_surname: form.lastName,
+                    user_name: form.firstName,
+                    user_fathername: form.fatherName || "",
+                    user_nickname: form.nickname,
+                    user_email: form.email,
+                    password: form.password,
+                    user_birthday: form.birthDate,
+                    user_gender: form.gender === "male" ? true : false,
+                    user_height: Number(form.height),
+                    user_weight: Number(form.weight),
+                    user_only_coach: form.role === "coach" ? true : false,
+                    user_hr_rest: Number(form.hr_rest),
+                    user_hr_max: Number(form.hr_max),
+                    user_pace_max: form.pace_max ? Number(form.pace_max) : null
+                }),
+            });
+
+            navigate("/login");
+        } catch (e) {
+            alert("Ошибка регистрации");
         }
-
-        const payload = {
-            lastName: form.lastName,
-            firstName: form.firstName,
-            fatherName: form.fatherName || null,
-            nickname: form.nickname,
-            email: form.email,
-            role: form.role,
-            sportType: form.sportType,
-            birthDate: form.birthDate,
-            gender: form.gender,
-        };
-
-        console.log("MOCK REGISTER PAYLOAD:", payload);
-
-        navigate("/login");
     };
 
     return (
@@ -251,6 +278,74 @@ const RegistrationPage: React.FC = () => {
                             {errors.birthDate && (
                                 <div className="invalid-feedback">{errors.birthDate}</div>
                             )}
+                        </div>
+
+                        <div className="col-md-4">
+                            <label className="form-label">Рост (см)</label>
+                            <input
+                                name="height"
+                                type="number"
+                                step="0.1"
+                                value={form.height}
+                                onChange={handleInput}
+                                className={`form-control ${errors.height ? "is-invalid" : ""}`}
+                            />
+                            {errors.height && (
+                                <div className="invalid-feedback">{errors.height}</div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="row g-3 mb-3">
+                        <div className="col-md-4">
+                            <label className="form-label">Вес (кг)</label>
+                            <input
+                                name="weight"
+                                type="number"
+                                step="0.01"
+                                value={form.weight}
+                                onChange={handleInput}
+                                className={`form-control ${errors.weight ? "is-invalid" : ""}`}
+                            />
+                            {errors.weight && (
+                                <div className="invalid-feedback">{errors.weight}</div>
+                            )}
+                        </div>
+
+                        <div className="col-md-4">
+                            <label className="form-label">Пульс покоя</label>
+                            <input
+                                name="hr_rest"
+                                type="number"
+                                value={form.hr_rest}
+                                onChange={handleInput}
+                                className="form-control"
+                            />
+                        </div>
+
+                        <div className="col-md-4">
+                            <label className="form-label">Макс. пульс</label>
+                            <input
+                                name="hr_max"
+                                type="number"
+                                value={form.hr_max}
+                                onChange={handleInput}
+                                className="form-control"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="row g-3 mb-3">
+                        <div className="col-md-6">
+                            <label className="form-label">Макс. темп (мин/км)</label>
+                            <input
+                                name="pace_max"
+                                type="number"
+                                step="0.001"
+                                value={form.pace_max}
+                                onChange={handleInput}
+                                className="form-control"
+                            />
                         </div>
                     </div>
 
