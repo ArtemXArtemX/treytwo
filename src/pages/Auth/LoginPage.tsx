@@ -1,17 +1,18 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.svg";
-import { apiFetch } from "../../api/http";
+import authService from "../../api/authService";
 
 interface LoginForm {
-    email: string;
+    login: string;
     password: string;
     remember: boolean;
 }
 
 const LoginPage: React.FC = () => {
+    const navigate = useNavigate();
     const [form, setForm] = useState<LoginForm>({
-        email: "",
+        login: "",
         password: "",
         remember: false,
     });
@@ -35,27 +36,17 @@ const LoginPage: React.FC = () => {
         setSuccess(null);
 
         try {
-            const result = await apiFetch<any>("/api/User/Auth", {
-                method: "POST",
-                body: JSON.stringify({
-                    login: form.email,
-                    password: form.password,
-                }),
+            const userData = await authService.login({
+                login: form.login,
+                password: form.password,
             });
 
-            console.log("Данные от сервера:", result); // ПОСМОТРИ В КОНСОЛЬ
-
-            localStorage.setItem("user", JSON.stringify(result));
-
-            if (result.id) {
-                localStorage.setItem("userId", String(result.id));
-            }
-
-            localStorage.setItem("token", result.token);
-            localStorage.setItem("userId", String(result.userId));
-
+            console.log("Данные от сервера:", userData);
             setSuccess("Успешный вход");
 
+            setTimeout(() => {
+                navigate("/profile");
+            }, 500);
         } catch (err: any) {
             console.error(err);
             setError("Неверный логин или пароль");
@@ -75,25 +66,22 @@ const LoginPage: React.FC = () => {
                     }}
                 />
 
-                <h2 className="text-center mb-1" style={{ fontWeight: 600 }}>
-                </h2>
-
                 <p className="text-center auth-subtitle mb-4">
                     Войдите в свой аккаунт
                 </p>
 
                 <form onSubmit={handleSubmit}>
                     <div className="mb-3">
-                        <label className="form-label" htmlFor="email">
-                            Адрес электронной почты
+                        <label className="form-label" htmlFor="login">
+                            Email или никнейм
                         </label>
                         <input
-                            id="email"
-                            name="email"
-                            type="email"
+                            id="login"
+                            name="login"
+                            type="text"
                             className="form-control"
-                            placeholder="Введите ваш email"
-                            value={form.email}
+                            placeholder="Введите email или никнейм"
+                            value={form.login}
                             onChange={handleChange}
                             required
                         />
@@ -165,12 +153,12 @@ const LoginPage: React.FC = () => {
                 </form>
 
                 {error && (
-                    <div className="mt-2 text-danger" style={{ fontSize: 14 }}>
+                    <div className="mt-2 text-danger text-center" style={{ fontSize: 14 }}>
                         {error}
                     </div>
                 )}
                 {success && (
-                    <div className="mt-2 text-success" style={{ fontSize: 14 }}>
+                    <div className="mt-2 text-success text-center" style={{ fontSize: 14 }}>
                         {success}
                     </div>
                 )}

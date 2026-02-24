@@ -1,7 +1,7 @@
 import React, { useState, ChangeEvent, FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.svg";
-import { apiFetch } from "../../api/http";
+import authService from "../../api/authService";
 
 type Role = "athlete" | "coach";
 
@@ -18,11 +18,11 @@ interface RegistrationForm {
     sportType: string;
     birthDate?: string;
     gender?: "male" | "female" | "other";
-    height: string;      // добавил
-    weight: string;      // добавил
-    hr_rest: string;     // добавил
-    hr_max: string;      // добавил
-    pace_max: string;    // добавил
+    height: string;
+    weight: string;
+    hr_rest: string;
+    hr_max: string;
+    pace_max: string;
 }
 
 const SPORT_OPTIONS = [
@@ -51,11 +51,11 @@ const RegistrationPage: React.FC = () => {
         sportType: "",
         birthDate: "",
         gender: "other",
-        height: "",        // добавил
-        weight: "",        // добавил
-        hr_rest: "60",     // добавил со значением по умолчанию
-        hr_max: "180",     // добавил со значением по умолчанию
-        pace_max: "",      // добавил
+        height: "",
+        weight: "",
+        hr_rest: "60",
+        hr_max: "180",
+        pace_max: "",
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -117,25 +117,22 @@ const RegistrationPage: React.FC = () => {
         if (!validate()) return;
 
         try {
-            await apiFetch("/api/User/Create", {
-                method: "POST",
-                body: JSON.stringify({
-                    id: 0,
-                    user_surname: form.lastName,
-                    user_name: form.firstName,
-                    user_fathername: form.fatherName || "",
-                    user_nickname: form.nickname,
-                    user_email: form.email,
-                    password: form.password,
-                    user_birthday: form.birthDate,
-                    user_gender: form.gender === "male" ? true : false,
-                    user_height: Number(form.height),
-                    user_weight: Number(form.weight),
-                    user_only_coach: form.role === "coach" ? true : false,
-                    user_hr_rest: Number(form.hr_rest),
-                    user_hr_max: Number(form.hr_max),
-                    user_pace_max: form.pace_max ? Number(form.pace_max) : null
-                }),
+            await authService.register({
+                id: 0,
+                user_surname: form.lastName,
+                user_name: form.firstName,
+                user_fathername: form.fatherName || "",
+                user_nickname: form.nickname,
+                user_email: form.email,
+                password: form.password,
+                user_birthday: form.birthDate || "",
+                user_gender: form.gender === "male",
+                user_height: Number(form.height),
+                user_weight: Number(form.weight),
+                user_only_coach: form.role === "coach",
+                user_hr_rest: Number(form.hr_rest),
+                user_hr_max: Number(form.hr_max),
+                user_pace_max: form.pace_max ? Number(form.pace_max) : null
             });
 
             navigate("/login");

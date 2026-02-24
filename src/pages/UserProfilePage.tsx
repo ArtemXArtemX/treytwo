@@ -1,20 +1,53 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
+import authService from '../api/authService';
+import api from '../api/axios';
+
+interface UserData {
+    user_surname: string;
+    user_name: string;
+    user_fathername: string;
+    user_email: string;
+    user_nickname: string;
+    user_birthday: string;
+    user_gender: boolean;
+    user_height: number;
+    user_weight: number;
+    user_only_coach: boolean;
+    user_hr_rest: number;
+    user_hr_max: number;
+    user_pace_max: number | null;
+    id: number;
+}
 
 const UserProfilePage: React.FC = () => {
     const navigate = useNavigate();
+    const [userData, setUserData] = useState<UserData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const userData = {
-        name: "",
-        email: "",
-        birthDate: "",
-        weight: "",
-        height: "",
-        location: "",
-        bio: "",
-        gender: ""
-    };
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const currentUser = authService.getCurrentUser();
+                if (!currentUser || !currentUser.id) {
+                    navigate('/login');
+                    return;
+                }
+
+                const response = await api.get(`/User/Get/${currentUser.id}`);
+                setUserData(response.data as UserData);
+            } catch (err) {
+                console.error('Ошибка загрузки данных пользователя:', err);
+                setError('Не удалось загрузить данные профиля');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchUserData();
+    }, [navigate]);
 
     const stats = [
         { label: "Занятия", value: "0" },
@@ -23,6 +56,46 @@ const UserProfilePage: React.FC = () => {
         { label: "Калории", value: "0" },
     ];
 
+    const formatDate = (dateString: string) => {
+        if (!dateString) return "Не указано";
+        return new Date(dateString).toLocaleDateString('ru-RU');
+    };
+
+    const getGenderText = (gender: boolean) => {
+        return gender ? "Мужской" : "Женский";
+    };
+
+    const getFullName = () => {
+        if (!userData) return "Не указано";
+        return `${userData.user_surname} ${userData.user_name} ${userData.user_fathername || ''}`.trim();
+    };
+
+    if (loading) {
+        return (
+            <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--trey-bg)" as any }}>
+                <Header />
+                <div className="container py-4 text-center">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !userData) {
+        return (
+            <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--trey-bg)" as any }}>
+                <Header />
+                <div className="container py-4">
+                    <div className="alert alert-danger" role="alert">
+                        {error || "Ошибка загрузки данных"}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--trey-bg)" as any }}>
             <Header />
@@ -30,8 +103,8 @@ const UserProfilePage: React.FC = () => {
             <div className="container py-4">
                 <div className="row">
                     <div className="col-md-4 d-flex flex-column">
-                        <div className="card border-0 shadow-sm mb-4 flex-grow-1" style={{ borderRadius: "12px" }}>
-                            <div className="card-body p-4 d-flex flex-column">
+                        <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px", height: "400px" }}>
+                            <div className="card-body p-4 d-flex flex-column" style={{ height: "100%" }}>
                                 <div className="text-center mb-4">
                                     <div
                                         className="rounded-circle mx-auto mb-3 border"
@@ -49,11 +122,14 @@ const UserProfilePage: React.FC = () => {
                                     </div>
 
                                     <h3 style={{ color: "#1a1a1a", fontWeight: 600 }}>
-                                        {userData.name || "Не указано"}
+                                        {getFullName()}
                                     </h3>
 
                                     <div className="text-muted mb-3">
-                                        {userData.email || "Не указано"}
+                                        {userData.user_email}
+                                    </div>
+                                    <div className="text-muted mb-3">
+                                        @{userData.user_nickname}
                                     </div>
                                 </div>
 
@@ -123,8 +199,8 @@ const UserProfilePage: React.FC = () => {
                     </div>
 
                     <div className="col-md-8">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "auto", minHeight: "300px" }}>
-                            <div className="card-body p-4">
+                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "400px" }}>
+                            <div className="card-body p-4 d-flex flex-column" style={{ height: "100%" }}>
                                 <div className="d-flex justify-content-between align-items-center mb-4">
                                     <h5 className="mb-0" style={{ color: "#1a1a1a", fontWeight: 600 }}>
                                         <i className="bi bi-person-badge me-2"></i>
@@ -132,62 +208,62 @@ const UserProfilePage: React.FC = () => {
                                     </h5>
                                 </div>
 
-                                <div className="row">
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            Дата рождения
-                                        </label>
-                                        <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                            {userData.birthDate || "Не указано"}
+                                <div className="row flex-grow-1">
+                                    <div className="col-md-6 d-flex flex-column">
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Дата рождения
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {formatDate(userData.user_birthday)}
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Вес
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {userData.user_weight ? `${userData.user_weight} кг` : "Не указано"}
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Пульс покоя
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {userData.user_hr_rest ? `${userData.user_hr_rest} уд/мин` : "Не указано"}
+                                            </div>
                                         </div>
                                     </div>
 
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            Пол
-                                        </label>
-                                        <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                            {userData.gender || "Не указано"}
+                                    <div className="col-md-6 d-flex flex-column">
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Пол
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {getGenderText(userData.user_gender)}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            Город
-                                        </label>
-                                        <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                            {userData.location || "Не указано"}
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Рост
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {userData.user_height ? `${userData.user_height} м` : "Не указано"}
+                                            </div>
                                         </div>
-                                    </div>
 
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            Вес (кг)
-                                        </label>
-                                        <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                            {userData.weight ? `${userData.weight} кг` : "Не указано"}
-                                        </div>
-                                    </div>
-
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            Рост (см)
-                                        </label>
-                                        <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                            {userData.height ? `${userData.height} см` : "Не указано"}
-                                        </div>
-                                    </div>
-
-                                    <div className="col-md-6 mb-3">
-                                        <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                            О себе
-                                        </label>
-                                        <div className="form-control-plaintext" style={{
-                                            color: "#1a1a1a",
-                                            whiteSpace: "pre-wrap",
-                                            minHeight: "38px"
-                                        }}>
-                                            {userData.bio || "Нет информации"}
+                                        <div className="mb-4 flex-grow-1">
+                                            <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
+                                                Макс. пульс
+                                            </label>
+                                            <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
+                                                {userData.user_hr_max ? `${userData.user_hr_max} уд/мин` : "Не указано"}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
