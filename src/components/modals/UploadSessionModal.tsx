@@ -1,6 +1,8 @@
 import React, { useState, ChangeEvent, useEffect } from "react";
 import { GpsPoint } from "../../pages/Athlete/CalendarPage";
 import sportService from "../../api/sportService";
+import trainingTypeService from "../../api/trainingTypeService";
+import { TrainingType } from "../../models/trainingType";
 
 export type UploadParsedPayload = {
     date: string;
@@ -41,16 +43,6 @@ interface Sport {
     sport_name: string;
 }
 
-const TRAINING_TYPES = [
-    { value: "", label: "Выберите тип тренировки" },
-    { value: "control", label: "Контрольный старт" },
-    { value: "interval", label: "Интервальная" },
-    { value: "tempo", label: "Темповая" },
-    { value: "long", label: "Длительная" },
-    { value: "recovery", label: "Восстановительная" },
-    { value: "steady", label: "Поддерживающая" },
-    { value: "other", label: "Другое" },
-];
 
 const semicirclesToDegrees = (semicircles: number): number => {
     return semicircles * (180 / Math.pow(2, 31));
@@ -71,6 +63,8 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [sports, setSports] = useState<Sport[]>([]);
     const [loadingSports, setLoadingSports] = useState(true);
+    const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
+    const [loadingTrainingTypes, setLoadingTrainingTypes] = useState(true);
 
     useEffect(() => {
         const fetchSports = async () => {
@@ -100,6 +94,21 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
         name_training: "",
         sport_id: "",
     });
+
+    useEffect(() => {
+        const fetchTrainingTypes = async () => {
+            setLoadingTrainingTypes(true);
+            try {
+                const typesData = await trainingTypeService.getTrainingTypes();
+                setTrainingTypes(typesData);
+            } catch (error) {
+                console.error("Ошибка загрузки типов тренировок:", error);
+            } finally {
+                setLoadingTrainingTypes(false);
+            }
+        };
+        fetchTrainingTypes();
+    }, []);
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [parsedData, setParsedData] = useState<any>(null);
@@ -224,14 +233,14 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
             }
 
             const selectedSport = sports.find(s => s.id.toString() === formData.sport_id);
-            const selectedType = TRAINING_TYPES.find(t => t.value === formData.type_training_id);
+            const selectedType = trainingTypes.find(t => t.id.toString() === formData.type_training_id);
 
             const payload: UploadParsedPayload = {
                 date: date,
                 status: "done",
                 name: parsedData.name || "Импортированная тренировка",
                 sport: selectedSport?.sport_name || formData.sport_id,
-                typeTraining: selectedType?.label || formData.type_training_id,
+                typeTraining: selectedType?.type_training_name || formData.type_training_id,
                 note: `Импортировано из файла ${selectedFile?.name}.${distanceKm ? ` Дистанция: ${distanceKm} км.` : ''}${durationSec ? ` Время: ${Math.floor(durationSec / 60)} мин.` : ''}${gpsPoints.length ? ` GPS точек: ${gpsPoints.length}.` : ''}${formData.comment_sportsmen ? `\n${formData.comment_sportsmen}` : ''}`,
                 startTime: startTime,
                 distanceKm: distanceKm,
@@ -356,9 +365,10 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                                                 height: "44px"
                                             }}
                                         >
-                                            {TRAINING_TYPES.map((o) => (
-                                                <option key={o.value} value={o.value}>
-                                                    {o.label}
+                                            <option value="">Выберите тип тренировки</option>
+                                            {trainingTypes.map((type) => (
+                                                <option key={type.id} value={type.id}>
+                                                    {type.type_training_name}
                                                 </option>
                                             ))}
                                         </select>

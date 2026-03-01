@@ -1,5 +1,7 @@
 import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import sportService from "../../api/sportService";
+import trainingTypeService from "../../api/trainingTypeService";
+import { TrainingType } from "../../models/trainingType";
 
 export type CreateSessionPayload = {
     date: string;
@@ -45,6 +47,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const [openStats, setOpenStats] = useState(false);
     const [sports, setSports] = useState<Sport[]>([]);
     const [loadingSports, setLoadingSports] = useState(true);
+    const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
+    const [loadingTrainingTypes, setLoadingTrainingTypes] = useState(true);
 
     useEffect(() => {
         const fetchSports = async () => {
@@ -54,6 +58,21 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
             setLoadingSports(false);
         };
         fetchSports();
+    }, []);
+
+    useEffect(() => {
+        const fetchTrainingTypes = async () => {
+            setLoadingTrainingTypes(true);
+            try {
+                const typesData = await trainingTypeService.getTrainingTypes();
+                setTrainingTypes(typesData);
+            } catch (error) {
+                console.error("Ошибка загрузки типов тренировок:", error);
+            } finally {
+                setLoadingTrainingTypes(false);
+            }
+        };
+        fetchTrainingTypes();
     }, []);
 
     const getCurrentDate = () => {
@@ -286,9 +305,10 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                 height: "44px"
                                             }}
                                         >
-                                            {TRAINING_TYPES.map((o) => (
-                                                <option key={o.value} value={o.value}>
-                                                    {o.label}
+                                            <option value="">Выберите тип тренировки</option>
+                                            {trainingTypes.map((type) => (
+                                                <option key={type.id} value={type.id}>
+                                                    {type.type_training_name}
                                                 </option>
                                             ))}
                                         </select>

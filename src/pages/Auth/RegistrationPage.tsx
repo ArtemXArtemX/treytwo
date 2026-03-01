@@ -104,7 +104,7 @@ const RegistrationPage: React.FC = () => {
     };
 
     const [sports, setSports] = useState<Sport[]>([]);
-    const [loadingSports, setLoadingSports] = useState(true);
+    const [, setLoadingSports] = useState(true);
 
     useEffect(() => {
         const fetchSports = async () => {
