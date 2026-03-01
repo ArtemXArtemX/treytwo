@@ -1,7 +1,9 @@
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, {useState, ChangeEvent, FormEvent, useEffect} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import logo from "../../assets/logo.svg";
 import authService from "../../api/authService";
+import {Sport} from "../../models/sport";
+import sportService from "../../api/sportService";
 
 type Role = "athlete" | "coach";
 
@@ -24,16 +26,6 @@ interface RegistrationForm {
     hr_max: string;
     pace_max: string;
 }
-
-const SPORT_OPTIONS = [
-    { value: "", label: "Выберите вид спорта" },
-    { value: "orienteering", label: "Ориентирование" },
-    { value: "running", label: "Бег" },
-    { value: "cycling", label: "Велоспорт" },
-    { value: "swimming", label: "Плавание" },
-    { value: "strength", label: "Силовые" },
-    { value: "other", label: "Другой" },
-];
 
 const RegistrationPage: React.FC = () => {
     const navigate = useNavigate();
@@ -111,6 +103,24 @@ const RegistrationPage: React.FC = () => {
         return Object.keys(err).length === 0;
     };
 
+    const [sports, setSports] = useState<Sport[]>([]);
+    const [loadingSports, setLoadingSports] = useState(true);
+
+    useEffect(() => {
+        const fetchSports = async () => {
+            setLoadingSports(true);
+            try {
+                const sportsData = await sportService.getSports();
+                setSports(sportsData);
+            } catch (error) {
+                console.error("Ошибка загрузки видов спорта:", error);
+            } finally {
+                setLoadingSports(false);
+            }
+        };
+        fetchSports();
+    }, []);
+
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
 
@@ -132,7 +142,8 @@ const RegistrationPage: React.FC = () => {
                 user_only_coach: form.role === "coach",
                 user_hr_rest: Number(form.hr_rest),
                 user_hr_max: Number(form.hr_max),
-                user_pace_max: form.pace_max ? Number(form.pace_max) : null
+                user_pace_max: form.pace_max ? Number(form.pace_max) : null,
+                sportId: Number(form.sportType)
             });
 
             navigate("/login");
@@ -348,18 +359,19 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="mb-3">
                         <label className="form-label">Основной вид спорта</label>
-                        <select
-                            name="sportType"
-                            value={form.sportType}
-                            onChange={handleInput}
-                            className={`form-select ${errors.sportType ? "is-invalid" : ""}`}
-                        >
-                            {SPORT_OPTIONS.map((o) => (
-                                <option key={o.value} value={o.value}>
-                                    {o.label}
-                                </option>
-                            ))}
-                        </select>
+                            <select
+                                name="sportType"
+                                value={form.sportType}
+                                onChange={handleInput}
+                                className={`form-select ${errors.sportType ? "is-invalid" : ""}`}
+                            >
+                                <option value="">Выберите вид спорта</option>
+                                {sports.map((sport: any) => (
+                                    <option key={sport.id} value={sport.id}>
+                                        {sport.sport_name}
+                                    </option>
+                                ))}
+                            </select>
                         {errors.sportType && (
                             <div className="invalid-feedback">{errors.sportType}</div>
                         )}

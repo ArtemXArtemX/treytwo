@@ -21,6 +21,7 @@ export interface RegisterRequest {
     user_hr_rest: number;
     user_hr_max: number;
     user_pace_max: number | null;
+    sportId: number;
 }
 
 export interface UserResponse {
@@ -38,6 +39,7 @@ export interface UserResponse {
     user_hr_rest: number;
     user_hr_max: number;
     user_pace_max: number | null;
+    sportId: number;
 }
 
 class AuthService {

@@ -1,4 +1,5 @@
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
+import sportService from "../../api/sportService";
 
 export type CreateSessionPayload = {
     date: string;
@@ -23,13 +24,11 @@ type Props = {
     onSubmit: (payload: CreateSessionPayload) => void;
 };
 
-const SPORT_OPTIONS = [
-    { value: "", label: "Выберите вид спорта" },
-    { value: "orienteering", label: "Ориентирование" },
-    { value: "running", label: "Бег" },
-    { value: "trail", label: "Трейл" },
-    { value: "other", label: "Другое" },
-];
+interface Sport {
+    id: number;
+    name: string;
+    label: string;
+}
 
 const TRAINING_TYPES = [
     { value: "", label: "Выберите тип тренировки" },
@@ -44,6 +43,18 @@ const TRAINING_TYPES = [
 
 const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const [openStats, setOpenStats] = useState(false);
+    const [sports, setSports] = useState<Sport[]>([]);
+    const [loadingSports, setLoadingSports] = useState(true);
+
+    useEffect(() => {
+        const fetchSports = async () => {
+            setLoadingSports(true);
+            const sportsData = await sportService.getSports();
+            setSports(sportsData);
+            setLoadingSports(false);
+        };
+        fetchSports();
+    }, []);
 
     const getCurrentDate = () => {
         const now = new Date();
@@ -149,9 +160,11 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         ev.preventDefault();
         if (!validate()) return;
 
+        const selectedSport = sports.find(s => s.id.toString() === form.sport);
+
         const payload: CreateSessionPayload = {
             name: form.name,
-            sport: form.sport,
+            sport: selectedSport?.label || form.sport,
             typeTraining: form.typeTraining,
             note: form.note,
             date: form.date,
@@ -180,6 +193,22 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     };
 
     const paceDisplay = calculatePaceDisplay();
+
+    if (loadingSports) {
+        return (
+            <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0,0,0,0.35)" }}>
+                <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div className="modal-content" style={{ borderRadius: 16, border: "none" }}>
+                        <div className="modal-body text-center py-5">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Загрузка...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0,0,0,0.35)" }}>
@@ -229,9 +258,10 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                 paddingRight: errors.sport ? "50px" : "32px"
                                             }}
                                         >
-                                            {SPORT_OPTIONS.map((o) => (
-                                                <option key={o.value} value={o.value}>
-                                                    {o.label}
+                                            <option value="">Выберите вид спорта</option>
+                                            {sports.map((sport: any) => (
+                                                <option key={sport.id} value={sport.id}>
+                                                    {sport.sport_name}
                                                 </option>
                                             ))}
                                         </select>

@@ -1,5 +1,6 @@
-import React, { useState, ChangeEvent } from "react";
+import React, { useState, ChangeEvent, useEffect } from "react";
 import { GpsPoint } from "../../pages/Athlete/CalendarPage";
+import sportService from "../../api/sportService";
 
 export type UploadParsedPayload = {
     date: string;
@@ -35,6 +36,22 @@ type Props = {
     onParsed: (data: UploadParsedPayload) => void;
 };
 
+interface Sport {
+    id: number;
+    sport_name: string;
+}
+
+const TRAINING_TYPES = [
+    { value: "", label: "Выберите тип тренировки" },
+    { value: "control", label: "Контрольный старт" },
+    { value: "interval", label: "Интервальная" },
+    { value: "tempo", label: "Темповая" },
+    { value: "long", label: "Длительная" },
+    { value: "recovery", label: "Восстановительная" },
+    { value: "steady", label: "Поддерживающая" },
+    { value: "other", label: "Другое" },
+];
+
 const semicirclesToDegrees = (semicircles: number): number => {
     return semicircles * (180 / Math.pow(2, 31));
 };
@@ -49,44 +66,42 @@ const calculatePaceFromSpeed = (speedMps: number): number | undefined => {
     return Math.round(paceSecPerKm);
 };
 
-// Константы из вашего кода
-const SPORT_OPTIONS = [
-    { value: "", label: "Выберите вид спорта" },
-    { value: "orienteering", label: "Ориентирование" },
-    { value: "running", label: "Бег" },
-    { value: "trail", label: "Трейл" },
-    { value: "other", label: "Другое" },
-];
-
-const TRAINING_TYPES = [
-    { value: "", label: "Выберите тип тренировки" },
-    { value: "control", label: "Контрольный старт" },
-    { value: "interval", label: "Интервальная" },
-    { value: "tempo", label: "Темповая" },
-    { value: "long", label: "Длительная" },
-    { value: "recovery", label: "Восстановительная" },
-    { value: "steady", label: "Поддерживающая" },
-    { value: "other", label: "Другое" },
-];
-
 const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
     const [error, setError] = useState<string>("");
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [sports, setSports] = useState<Sport[]>([]);
+    const [loadingSports, setLoadingSports] = useState(true);
 
-    // Новые состояния для формы ввода данных
+    useEffect(() => {
+        const fetchSports = async () => {
+            setLoadingSports(true);
+            try {
+                const sportsData = await sportService.getSports();
+                const transformedSports: Sport[] = sportsData.map((item: any) => ({
+                    id: item.id,
+                    sport_name: item.sport_name || item.name || item.label || "Неизвестно"
+                }));
+
+                setSports(transformedSports);
+            } catch (error) {
+                console.error("Ошибка загрузки видов спорта:", error);
+            } finally {
+                setLoadingSports(false);
+            }
+        };
+        fetchSports();
+    }, []);
     const [showDataForm, setShowDataForm] = useState(false);
     const [formData, setFormData] = useState({
         comment_sportsmen: "",
         stress_score: 0,
-        feeling_score: 0, // Без выбора по умолчанию
+        feeling_score: 0,
         type_training_id: "",
         name_training: "",
         sport_id: "",
     });
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-    // Данные из распарсенного файла
     const [parsedData, setParsedData] = useState<any>(null);
 
     const handleFileSelect = (e: ChangeEvent<HTMLInputElement>) => {
@@ -114,8 +129,6 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
             const text = await selectedFile.text();
             const parsed = JSON.parse(text);
             setParsedData(parsed);
-
-            // Показываем форму для ввода дополнительных данных
             setShowDataForm(true);
         } catch (err: any) {
             setError(`Ошибка при обработке файла: ${err.message}`);
@@ -210,49 +223,15 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                 gpsPoints.push({ lat: startLat, lon: startLon });
             }
 
-            // Маппинг sport значений на ID
-            const sportIdMap: Record<string, number> = {
-                "orienteering": 1,
-                "running": 2,
-                "trail": 3,
-                "other": 4
-            };
-
-            // Маппинг typeTraining значений на ID
-            const trainingTypeIdMap: Record<string, number> = {
-                "control": 1,
-                "interval": 2,
-                "tempo": 3,
-                "long": 4,
-                "recovery": 5,
-                "steady": 6,
-                "other": 7
-            };
-
-            // Используем sport_id из формы или маппим из parsedData
-            const sportId = formData.sport_id ?
-                sportIdMap[formData.sport_id] || 2 :
-                (parsedData.sport && sportIdMap[parsedData.sport]) || 2;
-
-            // Используем type_training_id из формы или маппим из parsedData
-            const typeTrainingId = formData.type_training_id ?
-                trainingTypeIdMap[formData.type_training_id] || 1 :
-                (parsedData.typeTraining && trainingTypeIdMap[parsedData.typeTraining]) || 1;
-
-            // Получаем текстовые значения для отображения
-            const sportText = formData.sport_id ?
-                SPORT_OPTIONS.find(s => s.value === formData.sport_id)?.label || "Бег" : "Бег";
-
-            const typeTrainingText = formData.type_training_id ?
-                TRAINING_TYPES.find(t => t.value === formData.type_training_id)?.label || "Контрольный старт" :
-                "Контрольный старт";
+            const selectedSport = sports.find(s => s.id.toString() === formData.sport_id);
+            const selectedType = TRAINING_TYPES.find(t => t.value === formData.type_training_id);
 
             const payload: UploadParsedPayload = {
                 date: date,
-                status: "done", // Всегда done при загрузке
+                status: "done",
                 name: parsedData.name || "Импортированная тренировка",
-                sport: sportText,
-                typeTraining: typeTrainingText,
+                sport: selectedSport?.sport_name || formData.sport_id,
+                typeTraining: selectedType?.label || formData.type_training_id,
                 note: `Импортировано из файла ${selectedFile?.name}.${distanceKm ? ` Дистанция: ${distanceKm} км.` : ''}${durationSec ? ` Время: ${Math.floor(durationSec / 60)} мин.` : ''}${gpsPoints.length ? ` GPS точек: ${gpsPoints.length}.` : ''}${formData.comment_sportsmen ? `\n${formData.comment_sportsmen}` : ''}`,
                 startTime: startTime,
                 distanceKm: distanceKm,
@@ -266,16 +245,15 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                 isRace: false,
                 isTest: false,
 
-                // Данные из формы - исправлены типы
                 comment_sportsmen: formData.comment_sportsmen || undefined,
                 stress_score: formData.stress_score,
                 feeling_score: formData.feeling_score || undefined,
-                type_training_id: typeTrainingId,
+                type_training_id: formData.type_training_id ? Number(formData.type_training_id) : undefined,
                 name_training: formData.name_training || undefined,
-                coach_creator: null, // Пока не заполняем
-                planned_training: false, // Всегда false при загрузке
+                coach_creator: null,
+                planned_training: false,
                 sportsmen_id: parsedData.sportsmen_id,
-                sport_id: sportId,
+                sport_id: formData.sport_id ? Number(formData.sport_id) : undefined,
             };
 
             onParsed(payload);
@@ -293,7 +271,6 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
             [name]: value
         }));
 
-        // Очищаем ошибку при изменении
         if (formErrors[name]) {
             setFormErrors(prev => ({
                 ...prev,
@@ -310,7 +287,20 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
         { value: 5, label: "😁 Очень сильным" }
     ];
 
-    // Если показана форма ввода данных
+    if (loadingSports) {
+        return (
+            <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
+                <div className="modal-dialog modal-dialog-centered">
+                    <div className="modal-content text-center py-5">
+                        <div className="spinner-border text-primary" role="status">
+                            <span className="visually-hidden">Загрузка...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     if (showDataForm && parsedData) {
         return (
             <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
@@ -320,7 +310,7 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                             borderBottom: "1px solid #e9ecef",
                             padding: "1.5rem 1.5rem 1rem"
                         }}>
-                            <h5 className="modal-title" style={{ fontSize: "1.25rem", fontWeight: 600 }}>Введите данные о занятие</h5>
+                            <h5 className="modal-title" style={{ fontSize: "1.25rem", fontWeight: 600 }}>Введите данные о занятии</h5>
                             <button type="button" className="btn-close" aria-label="Close" onClick={onClose} />
                         </div>
 
@@ -398,9 +388,10 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
                                                 height: "44px"
                                             }}
                                         >
-                                            {SPORT_OPTIONS.map((o) => (
-                                                <option key={o.value} value={o.value}>
-                                                    {o.label}
+                                            <option value="">Выберите вид спорта</option>
+                                            {sports.map((sport) => (
+                                                <option key={sport.id} value={sport.id}>
+                                                    {sport.sport_name}
                                                 </option>
                                             ))}
                                         </select>
@@ -538,7 +529,6 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
         );
     }
 
-    // Изначальный вид - загрузка файла
     return (
         <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
             <div className="modal-dialog modal-dialog-centered">
