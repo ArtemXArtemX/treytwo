@@ -253,7 +253,7 @@ const UserProfilePage: React.FC = () => {
                                                 Рост
                                             </label>
                                             <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                {userData.user_height ? `${userData.user_height} м` : "Не указано"}
+                                                {userData.user_height ? `${userData.user_height} см` : "Не указано"}
                                             </div>
                                         </div>
 

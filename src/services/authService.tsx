@@ -52,7 +52,7 @@ class AuthService {
 
             return response.data;
         } catch (error: any) {
-            console.error('❌ Registration error:', error.response?.data || error.message);
+            console.error('Registration error:', error.response?.data || error.message);
             throw new Error(error.response?.data?.message || 'Ошибка регистрации');
         }
     }
@@ -71,12 +71,9 @@ class AuthService {
                 payload.nickname = login;
             }
 
-            console.log('📤 Sending auth request to:', '/api/User/Auth');
-            console.log('📦 Auth data:', payload);
 
             const response = await api.post<AuthResponse>('/api/User/Auth', payload);
 
-            console.log('📥 Auth response:', response.data);
 
             if (response.data && response.data.token) {
                 localStorage.setItem('token', response.data.token);
@@ -85,37 +82,9 @@ class AuthService {
 
             return response.data;
         } catch (error: any) {
-            console.error('❌ Auth error:', error.response?.data || error.message);
+            console.error('Auth error:', error.response?.data || error.message);
             throw new Error(error.response?.data?.message || 'Неверный логин или пароль');
         }
-    }
-
-    async getUser(userId: number) {
-        try {
-            const response = await api.get(`/api/User/Get/${userId}`);
-            return response.data;
-        } catch (error: any) {
-            console.error('Get user error:', error.response?.data || error.message);
-            throw new Error(error.response?.data?.message || 'Ошибка получения данных');
-        }
-    }
-
-    logout(): void {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'http://localhost:3000/login';
-    }
-
-    getCurrentUser() {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try {
-                return JSON.parse(userStr);
-            } catch {
-                return null;
-            }
-        }
-        return null;
     }
 
     isAuthenticated(): boolean {
