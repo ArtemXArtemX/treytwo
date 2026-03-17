@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { TrainingEvent } from "../../pages/Athlete/CalendarPage";
 import GpsMap from "../GpsMap";
 
@@ -10,6 +11,8 @@ type Props = {
 };
 
 const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, formatPace }) => {
+    const navigate = useNavigate();
+
     const formatTimeWithoutSeconds = (timeStr?: string) => {
         if (!timeStr) return "";
         return timeStr.split(':').slice(0, 2).join(':');
@@ -39,6 +42,13 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
         if (!paceSecPerKm) return "-";
         const paceStr = formatPace(paceSecPerKm);
         return paceStr.replace(' /км', '');
+    };
+
+    const handleDetailsClick = () => {
+        // Используем training.id, который мы предполагаем, что приходит из календаря
+        // ID должен быть строкой, как определено в TrainingEvent
+        navigate(`/training/${training.id}`);
+        onClose(); // Закрываем модальное окно после перехода
     };
 
     return (
@@ -234,6 +244,7 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
 
                 <div style={{ marginBottom: 16 }}>
                     <button
+                        onClick={handleDetailsClick}
                         style={{
                             width: "100%",
                             padding: "10px 16px",

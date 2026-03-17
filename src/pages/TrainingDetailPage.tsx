@@ -1,40 +1,84 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/Header';
+import trainingService from '../api/trainingService';
+import { TrainingResponse } from '../api/trainingService';
+
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+} from 'chart.js';
+
+import { Line } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+);
 
 const TrainingDetailPage: React.FC = () => {
+    const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [training, setTraining] = useState<TrainingResponse | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'stats' | 'splits' | 'zones'>('stats');
     const [contentHeight, setContentHeight] = useState(0);
     const statsRef = useRef<HTMLDivElement>(null);
     const splitsRef = useRef<HTMLDivElement>(null);
     const zonesRef = useRef<HTMLDivElement>(null);
 
-    // Данные для отображения
-    const trainingData = {
-        distance: 3.19,
-        time: "22:11",
-        avgPace: "6:57",
-        elevationGain: 72,
-        calories: 206,
-        avgHr: 142,
-        maxHr: 162,
-        maxPace: "5:45",
-        elevationLoss: 68,
-        minElevation: 850,
-        maxElevation: 920,
-        stressScore: 6,
-        feelingScore: 4, // 1-5, где 1 - очень слабым, 5 - очень сильным
-        feelingLabels: [
-            "😫 Очень слабым",
-            "😔 Слабым",
-            "😐 Нормально",
-            "😊 Сильным",
-            "😁 Очень сильным"
-        ]
-    };
+    const feelingLabels = [
+        "😫 Очень слабым",
+        "😔 Слабым",
+        "😐 Нормально",
+        "😊 Сильным",
+        "😁 Очень сильным"
+    ];
 
-    // Поддержание постоянной высоты контента
+    useEffect(() => {
+        const fetchTraining = async () => {
+            if (!id) {
+                setError("ID тренировки не указан");
+                setLoading(false);
+                return;
+            }
+
+            const trainingId = parseInt(id, 10);
+            if (isNaN(trainingId)) {
+                setError("Некорректный ID тренировки");
+                setLoading(false);
+                return;
+            }
+
+            setLoading(true);
+            try {
+                const data = await trainingService.getTrainingById(trainingId);
+                setTraining(data);
+            } catch (err: any) {
+                console.error("Ошибка загрузки тренировки:", err);
+                setError(err.response?.data?.message || "Не удалось загрузить данные тренировки");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchTraining();
+    }, [id]);
+
     useEffect(() => {
         const updateContentHeight = () => {
             if (activeTab === 'stats' && statsRef.current) {
@@ -50,7 +94,208 @@ const TrainingDetailPage: React.FC = () => {
         window.addEventListener('resize', updateContentHeight);
 
         return () => window.removeEventListener('resize', updateContentHeight);
-    }, [activeTab]);
+    }, [activeTab, training]);
+
+    const formatTime = (isoString?: string) => {
+        if (!isoString) return "";
+
+        const timestamp = training?.local_timestamp || training?.time_start || isoString;
+
+        const [datePart, timePart] = timestamp.split('T');
+        const [year, month, day] = datePart.split('-');
+        const time = timePart.substring(0, 5);
+
+        return `${day}.${month}.${year} • ${time}`;
+    };
+
+    const formatDuration = (seconds?: number) => {
+        if (!seconds) return "-";
+
+        if (seconds > 1000000) {
+            seconds = seconds / 1000000;
+        }
+
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    };
+
+    const formatPace = (speedMps?: number | null) => {
+        if (!speedMps) return "-";
+        const paceSecPerKm = Math.round(1000 / speedMps);
+        const minutes = Math.floor(paceSecPerKm / 60);
+        const seconds = paceSecPerKm % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    };
+
+    const formatPaceDisplay = (speedMps?: number | null) => {
+        if (!speedMps) return "-";
+        const paceSecPerKm = Math.round(1000 / speedMps);
+        const minutes = Math.floor(paceSecPerKm / 60);
+        const seconds = paceSecPerKm % 60;
+        return `${minutes}:${seconds.toString().padStart(2, '0')} /км`;
+    };
+
+    const getHeartRateData = () => {
+        if (!training?.heart_rates || training.heart_rates.length === 0) return null;
+
+        const sortedPoints = [...training.heart_rates].sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+        const startTime = new Date(sortedPoints[0].timestamp).getTime();
+
+        return {
+            labels: sortedPoints.map((item) => {
+                const currentTime = new Date(item.timestamp).getTime();
+                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
+                const hours = Math.floor(secondsFromStart / 3600);
+                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const seconds = secondsFromStart % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }),
+            datasets: [
+                {
+                    label: 'Пульс (уд/мин)',
+                    data: sortedPoints.map((item) => item.heart_rate),
+                    borderColor: '#D1001C',
+                    backgroundColor: 'rgba(209, 0, 28, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                },
+            ],
+        };
+    };
+
+    const getPaceData = () => {
+        if (!training?.paces || training.paces.length === 0) return null;
+
+        const sortedPoints = [...training.paces].sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+        const startTime = new Date(sortedPoints[0].timestamp).getTime();
+
+        return {
+            labels: sortedPoints.map((item) => {
+                const currentTime = new Date(item.timestamp).getTime();
+                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
+                const hours = Math.floor(secondsFromStart / 3600);
+                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const seconds = secondsFromStart % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }),
+            datasets: [
+                {
+                    label: 'Темп (мин/км)',
+                    data: sortedPoints.map((item) => item.pace),
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                },
+            ],
+        };
+    };
+
+    const getAltitudeData = () => {
+        if (!training?.altitudes || training.altitudes.length === 0) return null;
+
+        const sortedPoints = [...training.altitudes].sort((a, b) =>
+            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        );
+
+        const startTime = new Date(sortedPoints[0].timestamp).getTime();
+
+        return {
+            labels: sortedPoints.map((item) => {
+                const currentTime = new Date(item.timestamp).getTime();
+                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
+                const hours = Math.floor(secondsFromStart / 3600);
+                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const seconds = secondsFromStart % 60;
+                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }),
+            datasets: [
+                {
+                    label: 'Высота (м)',
+                    data: sortedPoints.map((item) => item.altitude),
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointRadius: 0,
+                    borderWidth: 2,
+                },
+            ],
+        };
+    };
+
+    const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false,
+            },
+            tooltip: {
+                mode: 'index' as const,
+                intersect: false,
+            },
+        },
+        scales: {
+            x: {
+                display: true,
+                grid: {
+                    display: false,
+                },
+            },
+            y: {
+                display: true,
+                beginAtZero: false,
+            },
+        },
+        elements: {
+            point: {
+                radius: 0,
+            },
+        },
+    };
+
+    if (loading) {
+        return (
+            <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
+                <Header />
+                <div className="container py-4 text-center">
+                    <div className="spinner-border text-primary" role="status">
+                        <span className="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (error || !training) {
+        return (
+            <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
+                <Header />
+                <div className="container py-4">
+                    <div className="alert alert-danger" role="alert">
+                        {error || "Тренировка не найдена"}
+                    </div>
+                    <button className="btn btn-secondary" onClick={() => navigate('/calendar')}>
+                        Вернуться в календарь
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
@@ -60,10 +305,10 @@ const TrainingDetailPage: React.FC = () => {
                 <div className="row mb-4">
                     <div className="col-12">
                         <h1 style={{ color: "#1a1a1a", fontWeight: 700, fontSize: "28px" }}>
-                            Кисловодск Бег
+                            {training.name_training || "Тренировка"}
                         </h1>
                         <div style={{ color: "#666", fontSize: "14px" }}>
-                            15 января 2024 • 10:30
+                            {formatTime(training.time_start)}
                         </div>
                     </div>
                 </div>
@@ -79,7 +324,7 @@ const TrainingDetailPage: React.FC = () => {
                                             Дистанция
                                         </div>
                                         <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
-                                            {trainingData.distance} км
+                                            {training.distance ? (training.distance / 1000).toFixed(2) : "-"} км
                                         </div>
                                     </div>
 
@@ -88,7 +333,7 @@ const TrainingDetailPage: React.FC = () => {
                                             Время
                                         </div>
                                         <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
-                                            {trainingData.time}
+                                            {formatDuration(training.duration)}
                                         </div>
                                     </div>
 
@@ -97,7 +342,7 @@ const TrainingDetailPage: React.FC = () => {
                                             Средний темп
                                         </div>
                                         <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
-                                            {trainingData.avgPace} /км
+                                            {formatPaceDisplay(training.avg_speed)}
                                         </div>
                                     </div>
 
@@ -106,7 +351,7 @@ const TrainingDetailPage: React.FC = () => {
                                             Общий подъём
                                         </div>
                                         <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
-                                            {trainingData.elevationGain} м
+                                            {training.total_ascent ?? "-"} м
                                         </div>
                                     </div>
 
@@ -115,7 +360,7 @@ const TrainingDetailPage: React.FC = () => {
                                             Калории
                                         </div>
                                         <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
-                                            {trainingData.calories}
+                                            {training.calories ?? "-"}
                                         </div>
                                     </div>
                                 </div>
@@ -130,7 +375,7 @@ const TrainingDetailPage: React.FC = () => {
                         <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "400px" }}>
                             <div className="card-body p-4">
                                 <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                    GPS-трек тренировки
+                                    GPS-трек
                                 </h5>
                                 <div style={{
                                     height: "300px",
@@ -141,7 +386,7 @@ const TrainingDetailPage: React.FC = () => {
                                     justifyContent: "center",
                                     color: "#666"
                                 }}>
-                                    Блок для карты с GPS-треком
+                                    {training.is_gps ? "Блок для карты с GPS-треком" : "GPS данные отсутствуют"}
                                 </div>
                             </div>
                         </div>
@@ -159,13 +404,13 @@ const TrainingDetailPage: React.FC = () => {
                                     padding: "15px",
                                     minHeight: "300px"
                                 }}>
+                                    {training.comment_sportsman || "Нет примечаний"}
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Блоки для графиков */}
                 <div className="row mb-5">
                     <div className="col-12 mb-4">
                         <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
@@ -173,16 +418,22 @@ const TrainingDetailPage: React.FC = () => {
                                 <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
                                     Высота
                                 </h5>
-                                <div style={{
-                                    height: "200px",
-                                    backgroundColor: "#f8f9fa",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#666"
-                                }}>
-                                    Блок для графика высоты
+                                <div style={{ height: "200px", width: "100%" }}>
+                                    {getAltitudeData() ? (
+                                        <Line data={getAltitudeData()!} options={chartOptions} />
+                                    ) : (
+                                        <div style={{
+                                            height: "200px",
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "#666"
+                                        }}>
+                                            Нет данных о высоте
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -194,16 +445,22 @@ const TrainingDetailPage: React.FC = () => {
                                 <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
                                     Темп
                                 </h5>
-                                <div style={{
-                                    height: "200px",
-                                    backgroundColor: "#f8f9fa",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#666"
-                                }}>
-                                    Блок для графика темпа
+                                <div style={{ height: "200px", width: "100%" }}>
+                                    {getPaceData() ? (
+                                        <Line data={getPaceData()!} options={chartOptions} />
+                                    ) : (
+                                        <div style={{
+                                            height: "200px",
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "#666"
+                                        }}>
+                                            Нет данных о темпе
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -215,16 +472,22 @@ const TrainingDetailPage: React.FC = () => {
                                 <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
                                     Пульс
                                 </h5>
-                                <div style={{
-                                    height: "200px",
-                                    backgroundColor: "#f8f9fa",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#666"
-                                }}>
-                                    Блок для графика пульса
+                                <div style={{ height: "200px", width: "100%" }}>
+                                    {getHeartRateData() ? (
+                                        <Line data={getHeartRateData()!} options={chartOptions} />
+                                    ) : (
+                                        <div style={{
+                                            height: "200px",
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            color: "#666"
+                                        }}>
+                                            Нет данных о пульсе
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -295,7 +558,7 @@ const TrainingDetailPage: React.FC = () => {
                                                         Расстояние
                                                     </h6>
                                                     <div style={{ fontSize: "18px", color: "#1a1a1a" }}>
-                                                        {trainingData.distance} км
+                                                        {training.distance ? (training.distance / 1000).toFixed(2) : "-"} км
                                                     </div>
                                                 </div>
                                             </div>
@@ -308,10 +571,10 @@ const TrainingDetailPage: React.FC = () => {
                                                     <div className="row">
                                                         <div className="col-md-6 mb-3">
                                                             <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
-                                                                Воспринимаемые усилиия
+                                                                Воспринимаемые усилия
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.stressScore}/10
+                                                                {training.stress_score ?? "-"}/10
                                                             </div>
                                                         </div>
                                                         <div className="col-md-6 mb-3">
@@ -319,14 +582,14 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Как вы себя чувствовали?
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.feelingLabels[trainingData.feelingScore - 1]}
+                                                                {training.feeling_score ? feelingLabels[training.feeling_score - 1] : "-"}
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Блок Пульс */}
+                                            {/* Пульс */}
                                             <div className="card mb-4 border-0" style={{ backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
                                                 <div className="card-body p-4">
                                                     <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "15px" }}>
@@ -338,7 +601,7 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Средняя частота пульса
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.avgHr} уд/мин
+                                                                {training.avg_heart_rate ?? "-"} уд/мин
                                                             </div>
                                                         </div>
                                                         <div className="col-md-6 mb-3">
@@ -346,14 +609,22 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Максимальная частота пульса
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.maxHr} уд/мин
+                                                                {training.max_heart_rate ?? "-"} уд/мин
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-md-6 mb-3">
+                                                            <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                Минимальная частота пульса
+                                                            </div>
+                                                            <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                {training.min_heart_rate ?? "-"} уд/мин
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Блок Высота */}
+                                            {/* Высота */}
                                             <div className="card mb-4 border-0" style={{ backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
                                                 <div className="card-body p-4">
                                                     <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "15px" }}>
@@ -365,7 +636,7 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Общий подъём
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.elevationGain} м
+                                                                {training.total_ascent ?? "-"} м
                                                             </div>
                                                         </div>
                                                         <div className="col-md-6 mb-3">
@@ -373,15 +644,7 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Общий спуск
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.elevationLoss} м
-                                                            </div>
-                                                        </div>
-                                                        <div className="col-md-6 mb-3">
-                                                            <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
-                                                                Минимальная высота
-                                                            </div>
-                                                            <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.minElevation} м
+                                                                {training.total_descent ?? "-"} м
                                                             </div>
                                                         </div>
                                                         <div className="col-md-6 mb-3">
@@ -389,18 +652,18 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Максимальная высота
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.maxElevation} м
+                                                                {training.max_altitude ?? "-"} м
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            {/* Блок Темп */}
+                                            {/* Темп и скорость */}
                                             <div className="card mb-4 border-0" style={{ backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
                                                 <div className="card-body p-4">
                                                     <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "15px" }}>
-                                                        Темп
+                                                        Темп и скорость
                                                     </h6>
                                                     <div className="row">
                                                         <div className="col-md-6 mb-3">
@@ -408,7 +671,7 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Средний темп
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.avgPace} /км
+                                                                {formatPaceDisplay(training.avg_speed)}
                                                             </div>
                                                         </div>
                                                         <div className="col-md-6 mb-3">
@@ -416,18 +679,86 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Максимальный темп
                                                             </div>
                                                             <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
-                                                                {trainingData.maxPace} /км
+                                                                {formatPaceDisplay(training.max_speed)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-md-6 mb-3">
+                                                            <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                Средняя скорость
+                                                            </div>
+                                                            <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                {training.avg_speed ? (training.avg_speed * 3.6).toFixed(1) : "-"} км/ч
+                                                            </div>
+                                                        </div>
+                                                        <div className="col-md-6 mb-3">
+                                                            <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                Макс. скорость
+                                                            </div>
+                                                            <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                {training.max_speed ? (training.max_speed * 3.6).toFixed(1) : "-"} км/ч
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* Каденс и мощность */}
+                                            {(training.avg_running_cadence || training.max_running_cadence || training.avg_power || training.max_power) && (
+                                                <div className="card mb-4 border-0" style={{ backgroundColor: "#f8f9fa", borderRadius: "8px" }}>
+                                                    <div className="card-body p-4">
+                                                        <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "15px" }}>
+                                                            Дополнительные показатели
+                                                        </h6>
+                                                        <div className="row">
+                                                            {training.avg_running_cadence && (
+                                                                <div className="col-md-6 mb-3">
+                                                                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                        Средний каденс
+                                                                    </div>
+                                                                    <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                        {training.avg_running_cadence} шаг/мин
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {training.max_running_cadence && (
+                                                                <div className="col-md-6 mb-3">
+                                                                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                        Макс. каденс
+                                                                    </div>
+                                                                    <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                        {training.max_running_cadence} шаг/мин
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {training.avg_power && (
+                                                                <div className="col-md-6 mb-3">
+                                                                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                        Средняя мощность
+                                                                    </div>
+                                                                    <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                        {training.avg_power} Вт
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                            {training.max_power && (
+                                                                <div className="col-md-6 mb-3">
+                                                                    <div style={{ color: "#666", fontSize: "14px", marginBottom: "5px" }}>
+                                                                        Макс. мощность
+                                                                    </div>
+                                                                    <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                        {training.max_power} Вт
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
 
-                                    {/* Круги */}
                                     {activeTab === 'splits' && (
-                                        <div ref={splitsRef} style={{ minHeight: "400px" }}>
+                                        <div ref={splitsRef}>
                                             <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
                                                 Сплиты (круги)
                                             </h6>
@@ -436,141 +767,61 @@ const TrainingDetailPage: React.FC = () => {
                                                     <thead>
                                                     <tr>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Круг</th>
-                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Дистанция</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Время</th>
-                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Темп</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Дистанция</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Ср. пульс</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Макс. пульс</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Макс. скорость</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Ср. мощность</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
-                                                    <tr>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>1</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>1.00 км</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>7:15</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>7:15 /км</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>2</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>1.00 км</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>6:45</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>6:45 /км</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>3</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>1.00 км</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>6:30</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>6:30 /км</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>4</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>0.19 км</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>1:41</td>
-                                                        <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>8:52 /км</td>
-                                                    </tr>
+                                                    {training.laps && training.laps.length > 0 ? (
+                                                        training.laps.map((lap, index) => (
+                                                            <tr key={index} style={{ borderTop: "1px solid #e7eaf0" }}>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px", fontWeight: 500 }}>
+                                                                    {lap.lap_number + 1}
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {formatDuration(lap.duration)}
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {lap.distance ? (lap.distance / 1000).toFixed(2) : '-'} км
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {lap.avg_heart_rate ?? '-'} уд/мин
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {lap.max_heart_rate ?? '-'} уд/мин
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {lap.max_speed ? (lap.max_speed * 3.6).toFixed(1) : '-'} км/ч
+                                                                </td>
+                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                    {lap.avg_power ?? '-'} Вт
+                                                                </td>
+                                                            </tr>
+                                                        ))
+                                                    ) : (
+                                                        <tr>
+                                                            <td colSpan={7} className="text-center text-muted py-3">
+                                                                Нет данных по кругам
+                                                            </td>
+                                                        </tr>
+                                                    )}
                                                     </tbody>
                                                 </table>
                                             </div>
                                         </div>
                                     )}
 
-                                    {/* Время в зонах */}
                                     {activeTab === 'zones' && (
                                         <div ref={zonesRef} style={{ minHeight: "400px" }}>
                                             <h6 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                                Время в зонах пульса (5 зон)
+                                                Время в зонах пульса
                                             </h6>
-                                            <div style={{ marginBottom: "15px" }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                                    <span style={{ color: "#666", fontSize: "14px" }}>Зона 1 - Разминка</span>
-                                                    <span style={{ color: "#1a1a1a", fontWeight: 500 }}>5:30</span>
-                                                </div>
-                                                <div style={{
-                                                    height: "8px",
-                                                    backgroundColor: "#e9ecef",
-                                                    borderRadius: "4px",
-                                                    overflow: "hidden"
-                                                }}>
-                                                    <div style={{
-                                                        width: "20%",
-                                                        height: "100%",
-                                                        backgroundColor: "#5bc0de"
-                                                    }} />
-                                                </div>
-                                            </div>
-
-                                            <div style={{ marginBottom: "15px" }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                                    <span style={{ color: "#666", fontSize: "14px" }}>Зона 2 - Легкая</span>
-                                                    <span style={{ color: "#1a1a1a", fontWeight: 500 }}>8:15</span>
-                                                </div>
-                                                <div style={{
-                                                    height: "8px",
-                                                    backgroundColor: "#e9ecef",
-                                                    borderRadius: "4px",
-                                                    overflow: "hidden"
-                                                }}>
-                                                    <div style={{
-                                                        width: "32%",
-                                                        height: "100%",
-                                                        backgroundColor: "#5cb85c"
-                                                    }} />
-                                                </div>
-                                            </div>
-
-                                            <div style={{ marginBottom: "15px" }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                                    <span style={{ color: "#666", fontSize: "14px" }}>Зона 3 - Аэробная</span>
-                                                    <span style={{ color: "#1a1a1a", fontWeight: 500 }}>6:45</span>
-                                                </div>
-                                                <div style={{
-                                                    height: "8px",
-                                                    backgroundColor: "#e9ecef",
-                                                    borderRadius: "4px",
-                                                    overflow: "hidden"
-                                                }}>
-                                                    <div style={{
-                                                        width: "27%",
-                                                        height: "100%",
-                                                        backgroundColor: "#f0ad4e"
-                                                    }} />
-                                                </div>
-                                            </div>
-
-                                            <div style={{ marginBottom: "15px" }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                                    <span style={{ color: "#666", fontSize: "14px" }}>Зона 4 - Пороговая</span>
-                                                    <span style={{ color: "#1a1a1a", fontWeight: 500 }}>1:41</span>
-                                                </div>
-                                                <div style={{
-                                                    height: "8px",
-                                                    backgroundColor: "#e9ecef",
-                                                    borderRadius: "4px",
-                                                    overflow: "hidden"
-                                                }}>
-                                                    <div style={{
-                                                        width: "7%",
-                                                        height: "100%",
-                                                        backgroundColor: "#d9534f"
-                                                    }} />
-                                                </div>
-                                            </div>
-
-                                            <div style={{ marginBottom: "15px" }}>
-                                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
-                                                    <span style={{ color: "#666", fontSize: "14px" }}>Зона 5 - Максимальная</span>
-                                                    <span style={{ color: "#1a1a1a", fontWeight: 500 }}>0:00</span>
-                                                </div>
-                                                <div style={{
-                                                    height: "8px",
-                                                    backgroundColor: "#e9ecef",
-                                                    borderRadius: "4px",
-                                                    overflow: "hidden"
-                                                }}>
-                                                    <div style={{
-                                                        width: "0%",
-                                                        height: "100%",
-                                                        backgroundColor: "#8b0000"
-                                                    }} />
-                                                </div>
+                                            <div className="text-center text-muted py-5">
+                                                Данные по зонам пульса отсутствуют
                                             </div>
                                         </div>
                                     )}

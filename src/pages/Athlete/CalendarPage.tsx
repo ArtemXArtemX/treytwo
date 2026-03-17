@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState, useEffect } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -8,6 +8,8 @@ import Header from "../../components/Header";
 import TrainingDetailsModal from "../../components/modals/TrainingDetailsModal";
 import CreateSessionModal, { CreateSessionPayload } from "../../components/modals/CreateSessionModal";
 import UploadSessionModal, { UploadParsedPayload } from "../../components/modals/UploadSessionModal";
+import authService from "../../api/authService";
+import trainingService from "../../api/trainingService";
 
 export type TrainingStatus = "planned" | "done";
 
@@ -18,8 +20,8 @@ export type TrainingEvent = {
     date: string;
     status: TrainingStatus;
     name?: string;
-    sport?: string;
-    typeTraining?: string;
+    sport?: number;
+    typeTraining?: number;
     note?: string;
     startTime?: string;
     distanceKm?: number;
@@ -30,6 +32,14 @@ export type TrainingEvent = {
     elevationLossM?: number;
     calories?: number;
     gpsPoints?: GpsPoint[];
+
+    avg_speed?: number | null;
+    max_speed?: number | null;
+    max_heart_rate?: number | null;
+    min_heart_rate?: number | null;
+    max_altitude?: number | null;
+    avg_power?: number | null;
+    max_power?: number | null;
 };
 
 const toYmdLocal = (d: Date) => {
@@ -59,16 +69,83 @@ const AthleteCalendarPage: React.FC = () => {
     const calendarRef = useRef<FullCalendar | null>(null);
     const [view, setView] = useState<"dayGridMonth" | "dayGridWeek">("dayGridMonth");
     const [title, setTitle] = useState<string>("");
-
-    const [trainings, setTrainings] = useState<TrainingEvent[]>([
-        { id: "t1", date: "2026-01-07", status: "planned", name: "Интервалы", distanceKm: 8, durationSec: 3200 },
-        { id: "t2", date: "2026-01-09", status: "done", name: "Темповая", distanceKm: 10, durationSec: 3600 },
-        { id: "t3", date: "2026-01-09", status: "planned", name: "Восстановление", distanceKm: 5, durationSec: 1800 },
-    ]);
-
+    const [trainings, setTrainings] = useState<TrainingEvent[]>([]);
     const [createOpen, setCreateOpen] = useState(false);
     const [uploadOpen, setUploadOpen] = useState(false);
     const [selectedTraining, setSelectedTraining] = useState<TrainingEvent | null>(null);
+    const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const fetchAllTrainings = async () => {
+            const currentUser = authService.getCurrentUser();
+            if (!currentUser) return;
+
+            setIsLoading(true);
+            try {
+                const startDate = "2000-01-01";
+                const endDate = "2100-01-01";
+
+                const response = await trainingService.getTrainings(
+                    currentUser.id,
+                    startDate,
+                    endDate
+                );
+
+                const fetchedTrainings: TrainingEvent[] = response.map((item) => {
+                    let date = '';
+                    let startTime = undefined;
+
+                    if (item.time_start) {
+                        const [datePart, timePart] = item.time_start.split('T');
+                        date = datePart;
+                        if (timePart) {
+                            startTime = timePart.substring(0, 5);
+                        }
+                    } else if (item.local_timestamp) {
+                        const [datePart, timePart] = item.local_timestamp.split('T');
+                        date = datePart;
+                        if (timePart) {
+                            startTime = timePart.substring(0, 5);
+                        }
+                    }
+
+                    return {
+                        id: String(item.id),
+                        date: date,
+                        status: "done",
+                        name: item.name_training || "Тренировка",
+                        sport: item.sport_id,
+                        typeTraining: item.type_training_id,
+                        note: item.comment_sportsman || undefined,
+                        startTime: startTime,
+                        distanceKm: item.distance ? parseFloat((item.distance / 1000).toFixed(2)) : undefined,
+                        durationSec: item.duration || undefined,
+                        avgHr: item.avg_heart_rate || undefined,
+                        avgPaceSecPerKm: item.avg_speed ? Math.round(1000 / item.avg_speed) : undefined,
+                        avg_speed: item.avg_speed,
+                        max_speed: item.max_speed,
+                        max_heart_rate: item.max_heart_rate,
+                        min_heart_rate: item.min_heart_rate,
+                        max_altitude: item.max_altitude,
+                        avg_power: item.avg_power,
+                        max_power: item.max_power,
+                        elevationGainM: item.total_ascent || undefined,
+                        elevationLossM: item.total_descent || undefined,
+                        calories: item.calories || undefined,
+                    };
+                });
+
+                setTrainings(fetchedTrainings);
+            } catch (error) {
+                console.error("Ошибка загрузки тренировок:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchAllTrainings();
+    }, []);
 
     const trainingsByDate = useMemo(() => {
         const map = new Map<string, TrainingEvent[]>();
@@ -91,66 +168,108 @@ const AthleteCalendarPage: React.FC = () => {
     const goNext = () => calendarRef.current?.getApi().next();
 
     const onCreateSubmit = (payload: CreateSessionPayload) => {
-        setTrainings((prev) => [
-            ...prev,
-            {
-                id: crypto.randomUUID(),
-                date: payload.date,
-                status: "done",
-                name: payload.name,
-                sport: payload.sport,
-                typeTraining: payload.typeTraining,
-                note: payload.note,
-                startTime: payload.startTime,
-                distanceKm: payload.distanceKm,
-                durationSec: payload.durationSec,
-                avgHr: payload.avgHr,
-                elevationGainM: payload.elevationGainM,
-                elevationLossM: payload.elevationLossM,
-                calories: payload.calories,
-                avgPaceSecPerKm:
-                    typeof payload.avgPaceSecPerKm === "number"
-                        ? payload.avgPaceSecPerKm
-                        : payload.distanceKm && payload.durationSec
-                            ? (payload.durationSec / payload.distanceKm)
-                            : undefined,
-            },
-        ]);
+        const newTraining: TrainingEvent = {
+            id: crypto.randomUUID(),
+            date: payload.date,
+            status: "done",
+            name: payload.name,
+            sport: Number(payload.sport),
+            typeTraining: Number(payload.typeTraining),
+            note: payload.note,
+            startTime: payload.startTime,
+            distanceKm: payload.distanceKm,
+            durationSec: payload.durationSec,
+            avgHr: payload.avgHr,
+            avgPaceSecPerKm: typeof payload.avgPaceSecPerKm === "number"
+                ? payload.avgPaceSecPerKm
+                : payload.distanceKm && payload.durationSec
+                    ? (payload.durationSec / payload.distanceKm)
+                    : undefined,
+            elevationGainM: payload.elevationGainM,
+            elevationLossM: payload.elevationLossM,
+            calories: payload.calories,
+        };
+        setTrainings((prev) => [...prev, newTraining]);
         setCreateOpen(false);
     };
 
     const onUploadParsed = (parsed: UploadParsedPayload) => {
-        const date = parsed.date;
-        setTrainings((prev) => [
-            ...prev,
-            {
-                id: crypto.randomUUID(),
-                date,
-                status: parsed.status,
-                name: parsed.name,
-                sport: parsed.sport,
-                typeTraining: parsed.typeTraining,
-                note: parsed.note,
-                startTime: parsed.startTime,
-                distanceKm: parsed.distanceKm,
-                durationSec: parsed.durationSec,
-                avgHr: parsed.avgHr,
-                avgPaceSecPerKm: parsed.avgPaceSecPerKm,
-                elevationGainM: parsed.elevationGainM,
-                elevationLossM: parsed.elevationLossM,
-                calories: parsed.calories,
-                gpsPoints: parsed.gpsPoints,
-            },
-        ]);
+        const newTraining: TrainingEvent = {
+            id: crypto.randomUUID(),
+            date: parsed.date,
+            status: parsed.status,
+            name: parsed.name_training,
+            sport: Number(parsed.sport),
+            typeTraining: Number(parsed.typeTraining),
+            note: parsed.note,
+            startTime: parsed.startTime,
+            distanceKm: parsed.distanceKm,
+            durationSec: parsed.durationSec,
+            avgHr: parsed.avgHr,
+            avgPaceSecPerKm: parsed.avgPaceSecPerKm,
+            elevationGainM: parsed.elevationGainM,
+            elevationLossM: parsed.elevationLossM,
+            calories: parsed.calories,
+            gpsPoints: parsed.gpsPoints,
+
+            avg_speed: parsed.avg_speed,
+            max_speed: parsed.max_speed,
+            max_heart_rate: parsed.max_heart_rate,
+            min_heart_rate: parsed.min_heart_rate,
+            max_altitude: parsed.max_altitude,
+            avg_power: parsed.avg_power,
+            max_power: parsed.max_power,
+        };
+        setTrainings((prev) => [...prev, newTraining]);
         setUploadOpen(false);
     };
 
-    const handleTrainingClick = (training: TrainingEvent, e: React.MouseEvent) => {
+    const handleTrainingClick = async (training: TrainingEvent, e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
-        setSelectedTraining(training);
+
+        try {
+            const midData = await trainingService.getTrainingMid(Number(training.id));
+
+            const updatedTraining: TrainingEvent = {
+                id: training.id,
+                date: training.date,
+                status: training.status,
+                name: midData.name_training || training.name,
+                sport: midData.sport_id,
+                typeTraining: midData.type_training_id,
+                note: midData.comment_sportsman || undefined,
+                startTime: training.startTime,
+                distanceKm: midData.distance ? midData.distance / 1000 : training.distanceKm,
+                durationSec: midData.duration || training.durationSec,
+                avgHr: midData.avg_heart_rate || undefined,
+                avgPaceSecPerKm: midData.avg_speed ? Math.round(1000 / midData.avg_speed) : undefined,
+                avg_speed: midData.avg_speed,
+                max_speed: midData.max_speed,
+                max_heart_rate: midData.max_heart_rate,
+                min_heart_rate: midData.min_heart_rate,
+                max_altitude: midData.max_altitude,
+                avg_power: midData.avg_power,
+                max_power: midData.max_power,
+                elevationGainM: midData.total_ascent || undefined,
+                elevationLossM: midData.total_descent || undefined,
+                calories: midData.calories || undefined,
+                gpsPoints: midData.trackpoints?.map(tp => ({
+                    lat: tp.latitude,
+                    lon: tp.longitude
+                })) || []
+            };
+
+            setTrainings(prev => prev.map(t =>
+                t.id === training.id ? updatedTraining : t
+            ));
+
+            setSelectedTraining(updatedTraining);
+        } catch (error) {
+            console.error("Ошибка загрузки деталей тренировки:", error);
+            setSelectedTraining(training);
+        }
     };
-    const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
 
     const onDatesSet = (arg: any) => {
         setTitle(arg.view.title);
@@ -169,7 +288,6 @@ const AthleteCalendarPage: React.FC = () => {
         };
 
         const { start, end } = currentDateRange;
-
         const filteredTrainings = trainings.filter(training => {
             const trainingDate = new Date(training.date);
             return trainingDate >= start && trainingDate < end;
@@ -220,7 +338,6 @@ const AthleteCalendarPage: React.FC = () => {
                                         <span className="trey-legend-color trey-legend-color--planned"/>
                                         <span>Запланировано</span>
                                     </div>
-
                                     <div className="d-flex align-items-center gap-2 trey-legend">
                                         <span className="trey-legend-color trey-legend-color--done"/>
                                         <span>Выполнено</span>
@@ -313,7 +430,6 @@ const AthleteCalendarPage: React.FC = () => {
                                                                 }}>
                                                                     {name}
                                                                 </span>
-
                                                                 {training.distanceKm && !shouldMoveDistance && (
                                                                     <span className="trey-training-block-distance" style={{
                                                                         whiteSpace: 'nowrap',
@@ -323,11 +439,10 @@ const AthleteCalendarPage: React.FC = () => {
                                                                         fontWeight: '600',
                                                                         fontSize: '11px'
                                                                     }}>
-                                                                        {training.distanceKm} км
+                                                                        {training.distanceKm.toFixed(2)} км
                                                                     </span>
                                                                 )}
                                                             </div>
-
                                                             {(shouldMoveDistance || training.durationSec) && (
                                                                 <div style={{
                                                                     display: 'flex',
@@ -343,10 +458,9 @@ const AthleteCalendarPage: React.FC = () => {
                                                                             fontWeight: '600',
                                                                             fontSize: '11px'
                                                                         }}>
-                                                                            {training.distanceKm} км
+                                                                            {training.distanceKm.toFixed(2)} км
                                                                         </span>
                                                                     )}
-
                                                                     {training.durationSec && (
                                                                         <span className="trey-training-block-time" style={{
                                                                             whiteSpace: 'nowrap',
@@ -367,7 +481,6 @@ const AthleteCalendarPage: React.FC = () => {
                                 );
                             }}
                         />
-
                         <div className="trey-calendar-stats mt-4 pt-3 border-top">
                             <div className="row g-3">
                                 <div className="col-6 col-md-3">
