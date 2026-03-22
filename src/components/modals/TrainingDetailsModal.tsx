@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { TrainingEvent } from "../../pages/Athlete/CalendarPage";
 import GpsMap from "../GpsMap";
+import trainingService from "../../api/trainingService";
 
 type Props = {
     training: TrainingEvent;
@@ -12,6 +13,11 @@ type Props = {
 
 const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, formatPace }) => {
     const navigate = useNavigate();
+    const [showMenu, setShowMenu] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [deleteConfirmed, setDeleteConfirmed] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const formatTimeWithoutSeconds = (timeStr?: string) => {
         if (!timeStr) return "";
@@ -45,11 +51,38 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
     };
 
     const handleDetailsClick = () => {
-        // Используем training.id, который мы предполагаем, что приходит из календаря
-        // ID должен быть строкой, как определено в TrainingEvent
         navigate(`/training/${training.id}`);
-        onClose(); // Закрываем модальное окно после перехода
+        onClose();
     };
+
+    const handleDeleteClick = () => {
+        setShowMenu(false);
+        setShowDeleteConfirm(true);
+        setDeleteConfirmed(false);
+        setError(null);
+    };
+
+    const handleDelete = async () => {
+        if (!deleteConfirmed) return;
+
+        setIsDeleting(true);
+        setError(null);
+
+        try {
+            await trainingService.deleteTraining(Number(training.id));
+            onClose();
+        } catch (err: any) {
+            console.error("Ошибка при удалении тренировки:", err);
+            setError(err.response?.data?.message || "Ошибка при удалении тренировки");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const gpsPoints = training.gpsPoints?.map(point => ({
+        lat: point.lat,
+        lon: point.lon
+    })) || [];
 
     return (
         <div className="modal-backdrop" style={{
@@ -72,7 +105,109 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                 width: "95%",
                 maxHeight: "90vh",
                 overflowY: "auto",
+                position: "relative"
             }} onClick={(e) => e.stopPropagation()}>
+                {showDeleteConfirm && (
+                    <div style={{
+                        position: "fixed",
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        zIndex: 1002
+                    }} onClick={() => {
+                        setShowDeleteConfirm(false);
+                        setDeleteConfirmed(false);
+                        setError(null);
+                    }}>
+                        <div style={{
+                            background: "white",
+                            borderRadius: 16,
+                            padding: 24,
+                            maxWidth: 400,
+                            width: "90%",
+                            boxShadow: "0 8px 24px rgba(0,0,0,0.15)",
+                            border: "1px solid #e7eaf0"
+                        }} onClick={(e) => e.stopPropagation()}>
+                            <h4 style={{ color: "#1a1a1a", fontSize: 20, fontWeight: 600, marginBottom: 12 }}>
+                                Удалить занятие?
+                            </h4>
+                            <p style={{ color: "#666", fontSize: 14, marginBottom: 20 }}>
+                                Вы уверены? Это действие нельзя отменить.
+                            </p>
+
+                            {error && (
+                                <div style={{
+                                    color: "#dc3545",
+                                    fontSize: 14,
+                                    marginBottom: 16,
+                                    padding: 12,
+                                    background: "#f8d7da",
+                                    borderRadius: 8
+                                }}>
+                                    {error}
+                                </div>
+                            )}
+
+                            <div style={{ marginBottom: 24 }}>
+                                <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={deleteConfirmed}
+                                        onChange={(e) => setDeleteConfirmed(e.target.checked)}
+                                        style={{ width: 18, height: 18, cursor: "pointer" }}
+                                    />
+                                    <span style={{ color: "#333", fontSize: 14 }}>
+                        Подтверждаю удаление
+                    </span>
+                                </label>
+                            </div>
+
+                            <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                                <button
+                                    onClick={() => {
+                                        setShowDeleteConfirm(false);
+                                        setDeleteConfirmed(false);
+                                        setError(null);
+                                    }}
+                                    style={{
+                                        padding: "8px 16px",
+                                        borderRadius: 8,
+                                        background: "transparent",
+                                        border: "1px solid #6c757d",
+                                        color: "#6c757d",
+                                        fontSize: 14,
+                                        fontWeight: 500,
+                                        cursor: "pointer"
+                                    }}
+                                    disabled={isDeleting}
+                                >
+                                    Отмена
+                                </button>
+                                <button
+                                    onClick={handleDelete}
+                                    disabled={!deleteConfirmed || isDeleting}
+                                    style={{
+                                        padding: "8px 16px",
+                                        borderRadius: 8,
+                                        background: !deleteConfirmed || isDeleting ? "#dc354580" : "#dc3545",
+                                        border: "none",
+                                        color: "white",
+                                        fontSize: 14,
+                                        fontWeight: 500,
+                                        cursor: !deleteConfirmed || isDeleting ? "not-allowed" : "pointer"
+                                    }}
+                                >
+                                    {isDeleting ? "Удаление..." : "Удалить"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 <div className="d-flex justify-content-between align-items-start mb-4">
                     <div>
                         <h3 style={{
@@ -107,21 +242,76 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                         </div>
                     </div>
 
-                    <button
-                        onClick={onClose}
-                        style={{
-                            background: "none",
-                            border: "none",
-                            fontSize: 28,
-                            cursor: "pointer",
-                            color: "#666",
-                            lineHeight: 1,
-                            padding: 0
-                        }}
-                        aria-label="Закрыть"
-                    >
-                        ×
-                    </button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ position: "relative" }}>
+                            <button
+                                onClick={() => setShowMenu(!showMenu)}
+                                style={{
+                                    background: "none",
+                                    border: "none",
+                                    fontSize: 20,
+                                    cursor: "pointer",
+                                    color: "#666",
+                                    lineHeight: 1,
+                                    padding: "4px 8px",
+                                    borderRadius: 4,
+                                    letterSpacing: "2px"
+                                }}
+                                aria-label="Меню"
+                            >
+                                ⋯
+                            </button>
+
+                            {showMenu && !showDeleteConfirm && (
+                                <div style={{
+                                    position: "absolute",
+                                    top: "100%",
+                                    right: 0,
+                                    background: "white",
+                                    borderRadius: 12,
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                    border: "1px solid #e7eaf0",
+                                    minWidth: 140,
+                                    zIndex: 1001,
+                                    overflow: "hidden"
+                                }}>
+                                    <button
+                                        onClick={handleDeleteClick}
+                                        style={{
+                                            width: "100%",
+                                            padding: "12px 16px",
+                                            textAlign: "left",
+                                            background: "none",
+                                            border: "none",
+                                            color: "#dc3545",
+                                            fontSize: 14,
+                                            cursor: "pointer"
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
+                                        onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                    >
+                                        Удалить
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
+                        <button
+                            onClick={onClose}
+                            style={{
+                                background: "none",
+                                border: "none",
+                                fontSize: 28,
+                                cursor: "pointer",
+                                color: "#666",
+                                lineHeight: 1,
+                                padding: 0
+                            }}
+                            aria-label="Закрыть"
+                        >
+                            ×
+                        </button>
+                    </div>
                 </div>
 
                 {training.name && (
@@ -199,7 +389,6 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                         </div>
                     </div>
 
-                    {/* Общий подъем */}
                     <div style={{ textAlign: "center" }}>
                         <div style={{
                             fontSize: 28,
@@ -218,7 +407,6 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                         </div>
                     </div>
 
-                    {/* Калории */}
                     <div style={{ textAlign: "center" }}>
                         <div style={{
                             fontSize: 28,
@@ -239,7 +427,7 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                 </div>
 
                 <div style={{ marginBottom: 24 }}>
-                    <GpsMap points={training.gpsPoints || []} />
+                    <GpsMap points={gpsPoints} apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a" />
                 </div>
 
                 <div style={{ marginBottom: 16 }}>

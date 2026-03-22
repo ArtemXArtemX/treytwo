@@ -122,10 +122,6 @@ html, body, #root {
     font-weight: 800;
 }
 
-.leaflet-bottom.leaflet-right {
-    display: none !important;
-}
-
 .dropdown-menu {
     min-width: 220px;
     border: 1px solid #e7eaf0;

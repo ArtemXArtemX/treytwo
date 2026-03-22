@@ -628,7 +628,7 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Пульс покоя (уд/мин)
+                                                Пульс покоя
                                             </label>
                                             {editMode.anthropometry ? (
                                                 <input
@@ -646,7 +646,7 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Максимальный пульс (уд/мин)
+                                                Максимальный пульс
                                             </label>
                                             {editMode.anthropometry ? (
                                                 <input
@@ -664,7 +664,7 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Макс. темп (мин/км)
+                                                Макс. темп
                                             </label>
                                             {editMode.anthropometry ? (
                                                 <input

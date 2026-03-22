@@ -157,6 +157,15 @@ class TrainingService {
         const response = await api.get<TrainingResponse>(`/Training/GetMid/${id}`);
         return response.data;
     }
+
+    async createTraining(data: any): Promise<TrainingResponse> {
+        const response = await api.post<TrainingResponse>('/Training/CreateTraining', data);
+        return response.data;
+    }
+
+    async deleteTraining(id: number): Promise<void> {
+        await api.delete(`/Training/Delete/${id}`);
+    }
 }
 
 export default new TrainingService();

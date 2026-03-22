@@ -1,7 +1,10 @@
 import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import sportService from "../../api/sportService";
 import trainingTypeService from "../../api/trainingTypeService";
+import trainingService from "../../api/trainingService";
+import authService from "../../api/authService";
 import { TrainingType } from "../../models/trainingType";
+import { useNavigate } from 'react-router-dom';
 
 export type CreateSessionPayload = {
     date: string;
@@ -28,33 +31,35 @@ type Props = {
 
 interface Sport {
     id: number;
-    name: string;
-    label: string;
+    sport_name: string;
 }
 
-const TRAINING_TYPES = [
-    { value: "", label: "Выберите тип тренировки" },
-    { value: "control", label: "Контрольный старт" },
-    { value: "interval", label: "Интервальная" },
-    { value: "tempo", label: "Темповая" },
-    { value: "long", label: "Длительная" },
-    { value: "recovery", label: "Восстановительная" },
-    { value: "steady", label: "Поддерживающая" },
-    { value: "other", label: "Другое" },
+const feelingLabels = [
+    { value: 1, label: "😫" },
+    { value: 2, label: "😔" },
+    { value: 3, label: "😐" },
+    { value: 4, label: "😊" },
+    { value: 5, label: "😁" }
 ];
 
 const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
+    const navigate = useNavigate();
     const [openStats, setOpenStats] = useState(false);
     const [sports, setSports] = useState<Sport[]>([]);
     const [loadingSports, setLoadingSports] = useState(true);
     const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
     const [loadingTrainingTypes, setLoadingTrainingTypes] = useState(true);
+    const [error, setError] = useState<string>("");
 
     useEffect(() => {
         const fetchSports = async () => {
             setLoadingSports(true);
             const sportsData = await sportService.getSports();
-            setSports(sportsData);
+            const transformedSports: Sport[] = sportsData.map((item: any) => ({
+                id: item.id,
+                sport_name: item.sport_name || item.name || item.label || "Неизвестно"
+            }));
+            setSports(transformedSports);
             setLoadingSports(false);
         };
         fetchSports();
@@ -105,6 +110,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         calories: "",
         elevationGainM: "",
         elevationLossM: "",
+        stress_score: "",
+        feeling_score: "",
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -112,11 +119,14 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
     const handle = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
         const { name, value, type } = e.target;
 
-        if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM"].includes(name)) {
+        if (["durationHours", "durationMinutes", "durationSeconds", "avgHr", "calories", "elevationGainM", "elevationLossM", "stress_score"].includes(name)) {
             if (value === "" || /^\d*$/.test(value)) {
                 const numValue = value === "" ? "" : value;
                 setForm((p) => ({ ...p, [name]: numValue }));
             }
+        } else if (name === "feeling_score") {
+            // Для feeling_score просто сохраняем значение (уже число)
+            setForm((p) => ({ ...p, [name]: value }));
         } else if (name === "distanceKm") {
             if (value === "" || /^\d*\.?\d*$/.test(value)) {
                 setForm((p) => ({ ...p, [name]: value }));
@@ -175,31 +185,77 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         return undefined;
     };
 
-    const submit = (ev: FormEvent) => {
+    const submit = async (ev: FormEvent) => {
         ev.preventDefault();
         if (!validate()) return;
 
-        const selectedSport = sports.find(s => s.id.toString() === form.sport);
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) {
+            setError("Ошибка авторизации. Пожалуйста, войдите снова.");
+            return;
+        }
 
-        const payload: CreateSessionPayload = {
-            name: form.name,
-            sport: selectedSport?.label || form.sport,
-            typeTraining: form.typeTraining,
-            note: form.note,
-            date: form.date,
-            startTime: form.startTime,
-            distanceKm: parseFloat(form.distanceKm),
-            durationSec: parseTimeInputToSeconds(),
-            avgHr: form.avgHr ? parseInt(form.avgHr, 10) : undefined,
-            avgPaceSecPerKm: parsePaceToSeconds(),
-            elevationGainM: form.elevationGainM ? parseInt(form.elevationGainM, 10) : undefined,
-            elevationLossM: form.elevationLossM ? parseInt(form.elevationLossM, 10) : undefined,
-            calories: form.calories ? parseInt(form.calories, 10) : undefined,
-            isRace: false,
-            isTest: false,
+        const selectedSport = sports.find(s => s.id.toString() === form.sport);
+        const selectedType = trainingTypes.find(t => t.id.toString() === form.typeTraining);
+
+        const durationSec = parseTimeInputToSeconds();
+        const distanceKm = parseFloat(form.distanceKm);
+        const avgSpeed = durationSec > 0 && distanceKm > 0 ? (distanceKm * 1000) / durationSec : 0;
+
+        // Формируем время в ISO формате
+        const timeStartStr = `${form.date}T${form.startTime}:00`;
+
+        const trainingData = {
+            sportsman_id: currentUser.id,
+            sport_id: Number(form.sport),
+            type_training_id: Number(form.typeTraining),
+            name_training: form.name,
+            time_start: timeStartStr,
+            local_timestamp: timeStartStr,
+            duration: durationSec,
+            distance: distanceKm * 1000,
+            avg_heart_rate: form.avgHr ? parseInt(form.avgHr, 10) : 0,
+            avg_speed: avgSpeed,
+            calories: form.calories ? parseInt(form.calories, 10) : 0,
+            stress_score: form.stress_score ? parseInt(form.stress_score, 10) : null,
+            feeling_score: form.feeling_score ? parseInt(form.feeling_score, 10) : null,
+            comment_sportsman: form.note || "",
+            coach_creator: null,
+            comment_coach: null,
+            status_training: 1,
+            laps: null,
+            trackpoints: null
         };
 
-        onSubmit(payload);
+        try {
+            const createdTraining = await trainingService.createTraining(trainingData);
+
+            // Создаем payload для локального отображения
+            const payload: CreateSessionPayload = {
+                name: form.name,
+                sport: selectedSport?.sport_name || form.sport,
+                typeTraining: selectedType?.type_training_name || form.typeTraining,
+                note: form.note,
+                date: form.date,
+                startTime: form.startTime,
+                distanceKm: distanceKm,
+                durationSec: durationSec,
+                avgHr: form.avgHr ? parseInt(form.avgHr, 10) : undefined,
+                avgPaceSecPerKm: parsePaceToSeconds(),
+                elevationGainM: form.elevationGainM ? parseInt(form.elevationGainM, 10) : undefined,
+                elevationLossM: form.elevationLossM ? parseInt(form.elevationLossM, 10) : undefined,
+                calories: form.calories ? parseInt(form.calories, 10) : undefined,
+                isRace: false,
+                isTest: false,
+            };
+
+            onSubmit(payload);
+            onClose();
+            navigate(`/training/${createdTraining.id}`);
+        } catch (err: any) {
+            console.error("Ошибка при создании тренировки:", err);
+            setError(err.response?.data?.message || "Ошибка при создании тренировки");
+        }
     };
 
     const calculatePaceDisplay = (): string => {
@@ -211,9 +267,7 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         return `${paceMinutes}:${paceSeconds.toString().padStart(2, '0')}`;
     };
 
-    const paceDisplay = calculatePaceDisplay();
-
-    if (loadingSports) {
+    if (loadingSports || loadingTrainingTypes) {
         return (
             <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0,0,0,0.35)" }}>
                 <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
@@ -243,6 +297,8 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                     <form onSubmit={submit} noValidate>
                         <div className="modal-body" style={{ padding: "1.5rem" }}>
+                            {error && <div className="alert alert-danger">{error}</div>}
+
                             <div className="mb-4">
                                 <div className="row g-3">
                                     <div className="col-md-6">
@@ -312,9 +368,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                                 </option>
                                             ))}
                                         </select>
-                                    </div>
-
-                                    <div className="col-md-6">
                                     </div>
                                 </div>
                             </div>
@@ -480,7 +533,79 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                         </div>
                                         {errors.duration && <div className="text-danger mb-2" style={{ fontSize: "0.875rem" }}>{errors.duration}</div>}
                                     </div>
+                                </div>
+                            </div>
 
+                            <div className="mb-4">
+                                <div className="row g-3">
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Воспринимаемые усилия (1-10)
+                                        </label>
+                                        <div className="d-flex align-items-center">
+                                            <input
+                                                type="range"
+                                                className="form-range"
+                                                min="1"
+                                                max="10"
+                                                step="1"
+                                                name="stress_score"
+                                                value={form.stress_score}
+                                                onChange={(e) => {
+                                                    const value = e.target.value;
+                                                    setForm(prev => ({ ...prev, stress_score: value }));
+                                                }}
+                                            />
+                                            <span className="ms-3 fw-bold" style={{ minWidth: "30px", textAlign: "center" }}>{form.stress_score}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="col-md-12">
+                                        <label className="form-label">
+                                            Как вы себя чувствовали?
+                                        </label>
+                                        <div className="d-flex flex-wrap" style={{ gap: "0.5rem" }}>
+                                            {[
+                                                { value: "1", label: "😫 Очень слабым" },
+                                                { value: "2", label: "😔 Слабым" },
+                                                { value: "3", label: "😐 Нормально" },
+                                                { value: "4", label: "😊 Сильным" },
+                                                { value: "5", label: "😁 Очень сильным" }
+                                            ].map(feeling => (
+                                                <button
+                                                    key={feeling.value}
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setForm(prev => ({
+                                                            ...prev,
+                                                            feeling_score: prev.feeling_score === feeling.value ? "" : feeling.value
+                                                        }));
+                                                    }}
+                                                    style={{
+                                                        flex: "1 1 0",
+                                                        minWidth: "0",
+                                                        borderRadius: "8px",
+                                                        padding: "10px 8px",
+                                                        border: "1px solid #D1001C",
+                                                        backgroundColor: form.feeling_score === feeling.value ? "#D1001C" : "transparent",
+                                                        color: form.feeling_score === feeling.value ? "white" : "#D1001C",
+                                                        fontSize: "0.875rem",
+                                                        cursor: "pointer",
+                                                        outline: "none",
+                                                        whiteSpace: "nowrap",
+                                                        textAlign: "center"
+                                                    }}
+                                                >
+                                                    {feeling.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="mb-4">
+                                <div className="row g-3">
                                     <div className="col-12">
                                         <label className="form-label">
                                             Примечания

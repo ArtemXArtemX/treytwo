@@ -17,6 +17,7 @@ import {
 } from 'chart.js';
 
 import { Line } from 'react-chartjs-2';
+import GpsMap from "../components/GpsMap";
 
 ChartJS.register(
     CategoryScale,
@@ -369,7 +370,6 @@ const TrainingDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Карта и примечания */}
                 <div className="row mb-5">
                     <div className="col-md-8 mb-4">
                         <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "400px" }}>
@@ -377,17 +377,27 @@ const TrainingDetailPage: React.FC = () => {
                                 <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
                                     GPS-трек
                                 </h5>
-                                <div style={{
-                                    height: "300px",
-                                    backgroundColor: "#f8f9fa",
-                                    borderRadius: "8px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    color: "#666"
-                                }}>
-                                    {training.is_gps ? "Блок для карты с GPS-треком" : "GPS данные отсутствуют"}
-                                </div>
+                                {training.is_gps && training.trackpoints ? (
+                                    <GpsMap
+                                        points={training.trackpoints.map(tp => ({
+                                            lat: tp.latitude,
+                                            lon: tp.longitude
+                                        }))}
+                                        apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a"
+                                    />
+                                ) : (
+                                    <div style={{
+                                        height: "300px",
+                                        backgroundColor: "#f8f9fa",
+                                        borderRadius: "8px",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        color: "#666"
+                                    }}>
+                                        GPS данные отсутствуют
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
