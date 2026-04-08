@@ -123,20 +123,27 @@ const TrainingDetailPage: React.FC = () => {
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
     };
 
-    const formatPace = (speedMps?: number | null) => {
-        if (!speedMps) return "-";
-        const paceSecPerKm = Math.round(1000 / speedMps);
-        const minutes = Math.floor(paceSecPerKm / 60);
-        const seconds = paceSecPerKm % 60;
-        return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    };
-
     const formatPaceDisplay = (speedMps?: number | null) => {
         if (!speedMps) return "-";
         const paceSecPerKm = Math.round(1000 / speedMps);
         const minutes = Math.floor(paceSecPerKm / 60);
         const seconds = paceSecPerKm % 60;
         return `${minutes}:${seconds.toString().padStart(2, '0')} /км`;
+    };
+
+    const [editingLapId, setEditingLapId] = useState<number | null>(null);
+    const [editingLapCaption, setEditingLapCaption] = useState("");
+    const handleSaveLapCaption = async (lapId: number) => {
+        if (!training) return;
+        try {
+            await trainingService.patchLapCaption(training.id, lapId, editingLapCaption);
+            const updatedTraining = await trainingService.getTrainingById(training.id);
+            setTraining(updatedTraining);
+            setEditingLapId(null);
+            setEditingLapCaption("");
+        } catch (error) {
+            console.error("Ошибка сохранения описания круга:", error);
+        }
     };
 
     const getHeartRateData = () => {
@@ -152,23 +159,20 @@ const TrainingDetailPage: React.FC = () => {
             labels: sortedPoints.map((item) => {
                 const currentTime = new Date(item.timestamp).getTime();
                 const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const hours = Math.floor(secondsFromStart / 3600);
-                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const minutes = Math.floor(secondsFromStart / 60);
                 const seconds = secondsFromStart % 60;
-                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
             }),
-            datasets: [
-                {
-                    label: 'Пульс (уд/мин)',
-                    data: sortedPoints.map((item) => item.heart_rate),
-                    borderColor: '#D1001C',
-                    backgroundColor: 'rgba(209, 0, 28, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0,
-                    borderWidth: 2,
-                },
-            ],
+            datasets: [{
+                label: 'Пульс (уд/мин)',
+                data: sortedPoints.map((item) => item.heart_rate),
+                borderColor: '#D1001C',
+                backgroundColor: 'rgba(209, 0, 28, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 2,
+            }],
         };
     };
 
@@ -185,23 +189,20 @@ const TrainingDetailPage: React.FC = () => {
             labels: sortedPoints.map((item) => {
                 const currentTime = new Date(item.timestamp).getTime();
                 const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const hours = Math.floor(secondsFromStart / 3600);
-                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const minutes = Math.floor(secondsFromStart / 60);
                 const seconds = secondsFromStart % 60;
-                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
             }),
-            datasets: [
-                {
-                    label: 'Темп (мин/км)',
-                    data: sortedPoints.map((item) => item.pace),
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0,
-                    borderWidth: 2,
-                },
-            ],
+            datasets: [{
+                label: 'Темп (мин/км)',
+                data: sortedPoints.map((item) => item.pace),
+                borderColor: '#0d6efd',
+                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 2,
+            }],
         };
     };
 
@@ -218,23 +219,20 @@ const TrainingDetailPage: React.FC = () => {
             labels: sortedPoints.map((item) => {
                 const currentTime = new Date(item.timestamp).getTime();
                 const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const hours = Math.floor(secondsFromStart / 3600);
-                const minutes = Math.floor((secondsFromStart % 3600) / 60);
+                const minutes = Math.floor(secondsFromStart / 60);
                 const seconds = secondsFromStart % 60;
-                return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
             }),
-            datasets: [
-                {
-                    label: 'Высота (м)',
-                    data: sortedPoints.map((item) => item.altitude),
-                    borderColor: '#198754',
-                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
-                    tension: 0.4,
-                    fill: true,
-                    pointRadius: 0,
-                    borderWidth: 2,
-                },
-            ],
+            datasets: [{
+                label: 'Высота (м)',
+                data: sortedPoints.map((item) => item.altitude),
+                borderColor: '#198754',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 0,
+                borderWidth: 2,
+            }],
         };
     };
 
@@ -314,7 +312,6 @@ const TrainingDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Единый блок с 5 основными показателями */}
                 <div className="row mb-5">
                     <div className="col-12">
                         <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
@@ -423,81 +420,33 @@ const TrainingDetailPage: React.FC = () => {
 
                 <div className="row mb-5">
                     <div className="col-12 mb-4">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+                        <div className="card border-0 shadow-sm">
                             <div className="card-body p-4">
-                                <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                    Высота
-                                </h5>
-                                <div style={{ height: "200px", width: "100%" }}>
-                                    {getAltitudeData() ? (
-                                        <Line data={getAltitudeData()!} options={chartOptions} />
-                                    ) : (
-                                        <div style={{
-                                            height: "200px",
-                                            backgroundColor: "#f8f9fa",
-                                            borderRadius: "8px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "#666"
-                                        }}>
-                                            Нет данных о высоте
-                                        </div>
-                                    )}
+                                <h5>Высота</h5>
+                                <div style={{ height: "200px" }}>
+                                    {getAltitudeData() ? <Line data={getAltitudeData()!} options={chartOptions} /> : "Нет данных"}
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="col-12 mb-4">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+                        <div className="card border-0 shadow-sm">
                             <div className="card-body p-4">
-                                <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                    Темп
-                                </h5>
-                                <div style={{ height: "200px", width: "100%" }}>
-                                    {getPaceData() ? (
-                                        <Line data={getPaceData()!} options={chartOptions} />
-                                    ) : (
-                                        <div style={{
-                                            height: "200px",
-                                            backgroundColor: "#f8f9fa",
-                                            borderRadius: "8px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "#666"
-                                        }}>
-                                            Нет данных о темпе
-                                        </div>
-                                    )}
+                                <h5>Темп</h5>
+                                <div style={{ height: "200px" }}>
+                                    {getPaceData() ? <Line data={getPaceData()!} options={chartOptions} /> : "Нет данных"}
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <div className="col-12">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
+                        <div className="card border-0 shadow-sm">
                             <div className="card-body p-4">
-                                <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                    Пульс
-                                </h5>
-                                <div style={{ height: "200px", width: "100%" }}>
-                                    {getHeartRateData() ? (
-                                        <Line data={getHeartRateData()!} options={chartOptions} />
-                                    ) : (
-                                        <div style={{
-                                            height: "200px",
-                                            backgroundColor: "#f8f9fa",
-                                            borderRadius: "8px",
-                                            display: "flex",
-                                            alignItems: "center",
-                                            justifyContent: "center",
-                                            color: "#666"
-                                        }}>
-                                            Нет данных о пульсе
-                                        </div>
-                                    )}
+                                <h5>Пульс</h5>
+                                <div style={{ height: "200px" }}>
+                                    {getHeartRateData() ? <Line data={getHeartRateData()!} options={chartOptions} /> : "Нет данных"}
                                 </div>
                             </div>
                         </div>
@@ -777,44 +726,88 @@ const TrainingDetailPage: React.FC = () => {
                                                     <thead>
                                                     <tr>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Круг</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Описание</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Время</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Дистанция</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Ср. пульс</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Макс. пульс</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Макс. скорость</th>
                                                         <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Ср. мощность</th>
+                                                        <th style={{ color: "#666", fontWeight: 500, border: "none", padding: "12px 15px" }}>Действия</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
                                                     {training.laps && training.laps.length > 0 ? (
-                                                        training.laps.map((lap, index) => (
-                                                            <tr key={index} style={{ borderTop: "1px solid #e7eaf0" }}>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px", fontWeight: 500 }}>
-                                                                    {lap.lap_number + 1}
+                                                        training.laps.map((lap) => (
+                                                            <tr key={lap.lap_number} style={{ borderTop: "1px solid #e7eaf0" }}>
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a", fontWeight: 500 }}>
+                                                                    {lap.lap_number}
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {editingLapId === lap.lap_number ? (
+                                                                        <input
+                                                                            type="text"
+                                                                            value={editingLapCaption}
+                                                                            onChange={(e) => setEditingLapCaption(e.target.value)}
+                                                                            onBlur={() => handleSaveLapCaption(lap.lap_number)}
+                                                                            onKeyDown={(e) => {
+                                                                                if (e.key === 'Enter') handleSaveLapCaption(lap.lap_number);
+                                                                            }}
+                                                                            autoFocus
+                                                                            style={{
+                                                                                width: "100%",
+                                                                                padding: "4px 8px",
+                                                                                borderRadius: "4px",
+                                                                                border: "1px solid #D1001C",
+                                                                                outline: "none"
+                                                                            }}
+                                                                        />
+                                                                    ) : (
+                                                                        <span>{lap.lap_caption || "-"}</span>
+                                                                    )}
+                                                                </td>
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
                                                                     {formatDuration(lap.duration)}
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
-                                                                    {lap.distance ? (lap.distance / 1000).toFixed(2) : '-'} км
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {lap.distance ? (lap.distance / 1000).toFixed(2) : "-"} км
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
-                                                                    {lap.avg_heart_rate ?? '-'} уд/мин
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {lap.avg_heart_rate ?? "-"} уд/мин
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
-                                                                    {lap.max_heart_rate ?? '-'} уд/мин
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {lap.max_heart_rate ?? "-"} уд/мин
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
-                                                                    {lap.max_speed ? (lap.max_speed * 3.6).toFixed(1) : '-'} км/ч
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {lap.max_speed ? (lap.max_speed * 3.6).toFixed(1) : "-"} км/ч
                                                                 </td>
-                                                                <td style={{ color: "#1a1a1a", border: "none", padding: "12px 15px" }}>
-                                                                    {lap.avg_power ?? '-'} Вт
+                                                                <td style={{ padding: "12px 15px", color: "#1a1a1a" }}>
+                                                                    {lap.avg_power ?? "-"} Вт
+                                                                </td>
+                                                                <td style={{ padding: "12px 15px" }}>
+                                                                    {editingLapId !== lap.lap_number && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                setEditingLapId(lap.lap_number);
+                                                                                setEditingLapCaption(lap.lap_caption || "");
+                                                                            }}
+                                                                            style={{
+                                                                                background: "none",
+                                                                                border: "none",
+                                                                                cursor: "pointer",
+                                                                                fontSize: "16px",
+                                                                                color: "#D1001C"
+                                                                            }}
+                                                                        >
+                                                                            ✏️
+                                                                        </button>
+                                                                    )}
                                                                 </td>
                                                             </tr>
                                                         ))
                                                     ) : (
                                                         <tr>
-                                                            <td colSpan={7} className="text-center text-muted py-3">
+                                                            <td colSpan={9} className="text-center text-muted py-3">
                                                                 Нет данных по кругам
                                                             </td>
                                                         </tr>

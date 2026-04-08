@@ -40,6 +40,8 @@ export type TrainingEvent = {
     max_altitude?: number | null;
     avg_power?: number | null;
     max_power?: number | null;
+    stress_score?: number | null;
+    feeling_score?: number | null;
 };
 
 const toYmdLocal = (d: Date) => {

@@ -18,6 +18,20 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
     const [deleteConfirmed, setDeleteConfirmed] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isEditingName, setIsEditingName] = useState(false);
+    const [editedName, setEditedName] = useState(training.name || "");
+
+    const handleSaveName = async () => {
+        const trainingId = Number(training.id);
+        if (!editedName.trim()) return;
+        try {
+            await trainingService.patchTrainingName(trainingId, editedName);
+            setIsEditingName(false);
+            alert("Название изменено");
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Ошибка при сохранении");
+        }
+    };
 
     const formatTimeWithoutSeconds = (timeStr?: string) => {
         if (!timeStr) return "";
@@ -276,6 +290,28 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                                     overflow: "hidden"
                                 }}>
                                     <button
+                                        onClick={() => {
+                                            setShowMenu(false);
+                                            setIsEditingName(true);
+                                            setEditedName(training.name || "");
+                                        }}
+                                        style={{
+                                            width: "100%",
+                                            padding: "12px 16px",
+                                            textAlign: "left",
+                                            background: "none",
+                                            border: "none",
+                                            color: "#333",
+                                            fontSize: 14,
+                                            cursor: "pointer"
+                                        }}
+                                        onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
+                                        onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                    >
+                                        Редактировать
+                                    </button>
+
+                                    <button
                                         onClick={handleDeleteClick}
                                         style={{
                                             width: "100%",
@@ -314,17 +350,60 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                     </div>
                 </div>
 
-                {training.name && (
-                    <div style={{
-                        fontSize: 20,
-                        fontWeight: 600,
-                        color: "#1a1a1a",
-                        marginBottom: 24,
-                        paddingBottom: 16,
-                        borderBottom: "1px solid #e7eaf0"
-                    }}>
-                        {training.name}
+                {isEditingName ? (
+                    <div style={{ marginBottom: 24, paddingBottom: 16, borderBottom: "1px solid #e7eaf0" }}>
+                        <input
+                            type="text"
+                            className="form-control"
+                            value={editedName}
+                            onChange={(e) => setEditedName(e.target.value)}
+                            style={{ fontSize: "20px", fontWeight: 600 }}
+                            autoFocus
+                        />
+                        <div className="d-flex justify-content-end gap-2 mt-2">
+                            <button
+                                onClick={() => setIsEditingName(false)}
+                                style={{
+                                    padding: "6px 16px",
+                                    borderRadius: "8px",
+                                    background: "transparent",
+                                    border: "1px solid #6c757d",
+                                    color: "#6c757d",
+                                    fontSize: 14,
+                                    cursor: "pointer"
+                                }}
+                            >
+                                Отмена
+                            </button>
+                            <button
+                                onClick={handleSaveName}
+                                style={{
+                                    padding: "6px 16px",
+                                    borderRadius: "8px",
+                                    background: "#28a745",
+                                    border: "none",
+                                    color: "white",
+                                    fontSize: 14,
+                                    cursor: "pointer"
+                                }}
+                            >
+                                Сохранить
+                            </button>
+                        </div>
                     </div>
+                ) : (
+                    training.name && (
+                        <div style={{
+                            fontSize: 20,
+                            fontWeight: 600,
+                            color: "#1a1a1a",
+                            marginBottom: 24,
+                            paddingBottom: 16,
+                            borderBottom: "1px solid #e7eaf0"
+                        }}>
+                            {training.name}
+                        </div>
+                    )
                 )}
 
                 <div style={{

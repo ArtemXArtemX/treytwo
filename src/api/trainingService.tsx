@@ -166,6 +166,46 @@ class TrainingService {
     async deleteTraining(id: number): Promise<void> {
         await api.delete(`/Training/Delete/${id}`);
     }
+
+    async patchTrainingName(id: number, name: string): Promise<TrainingResponse> {
+        const response = await api.patch<TrainingResponse>(`/Training/Patch/Name/${id}`, null, {
+            params: { name }
+        });
+        return response.data;
+    }
+
+    async patchStressScore(id: number, score: number): Promise<TrainingResponse> {
+        const response = await api.patch<TrainingResponse>(`/Training/Patch/StressScore/${id}`, null, {
+            params: { score }
+        });
+        return response.data;
+    }
+
+    async patchFeelingScore(id: number, score: number): Promise<TrainingResponse> {
+        const response = await api.patch<TrainingResponse>(`/Training/Patch/FeelingScore/${id}`, null, {
+            params: { score }
+        });
+        return response.data;
+    }
+
+    async patchComment(id: number, comment: string): Promise<TrainingResponse> {
+        const response = await api.patch<TrainingResponse>(`/Training/Patch/CommentSportsman/${id}`, null, {
+            params: { comment }
+        });
+        return response.data;
+    }
+
+    async patchLapCaption(id: number, lapId: number, caption: string): Promise<TrainingResponse> {
+        const response = await api.patch<TrainingResponse>(`/Training/Patch/LapCaption/${id}`, null, {
+            params: { lap_id: lapId, caption }
+        });
+        return response.data;
+    }
+
+    async updateTraining(id: number, data: any): Promise<TrainingResponse> {
+        const response = await api.put<TrainingResponse>(`/Training/Update`, data);
+        return response.data;
+    }
 }
 
 export default new TrainingService();
