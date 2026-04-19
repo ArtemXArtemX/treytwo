@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import logo from "../assets/logo.svg";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
@@ -8,40 +8,71 @@ type Props = {
     active?: "calendar" | "report" | "analysis" | "coach" | "challenges";
 };
 
-const Header: React.FC<Props> = ({ active = "calendar" }) => {
+const Header: React.FC<Props> = ({ active }) => {
+    const location = useLocation();
+
+    const getActiveTab = () => {
+        if (active) return active;
+
+        const path = location.pathname;
+        if (path === "/calendar" || path === "/") return "calendar";
+        if (path === "/reports") return "report";
+        if (path === "/analysis") return "analysis";
+        if (path === "/coach") return "coach";
+        if (path === "/challenges") return "challenges";
+        return "calendar";
+    };
+
+    const activeTab = getActiveTab();
+
     return (
         <header className="bg-white border-bottom">
             <div className="container py-3 d-flex align-items-center justify-content-between">
                 <div className="d-flex align-items-center gap-3">
-                    <img src={logo} alt="TREY logo" style={{ height: 42, width: "auto" }} />
+                    <Link to="/calendar">
+                        <img src={logo} alt="TREY logo" style={{ height: 42, width: "auto" }} />
+                    </Link>
                 </div>
 
                 <nav className="d-none d-md-flex gap-4">
                     <Link
-                        className={`trey-navlink ${active === "calendar" ? "is-active" : ""}`}
+                        className={`trey-navlink ${activeTab === "calendar" ? "is-active" : ""}`}
                         to="/calendar"
                     >
                         Календарь
                     </Link>
 
-                    <a className={`trey-navlink ${active === "report" ? "is-active" : ""}`} href="#report">
-                        Отчёт
-                    </a>
+                    <Link
+                        className={`trey-navlink ${activeTab === "report" ? "is-active" : ""}`}
+                        to="/reports"
+                    >
+                        Отчёты
+                    </Link>
 
-                    <a className={`trey-navlink ${active === "analysis" ? "is-active" : ""}`} href="#analysis">
-                        Анализ
-                    </a>
-
-                    <a className={`trey-navlink ${active === "coach" ? "is-active" : ""}`} href="#coach">
+                    <Link
+                        className={`trey-navlink ${activeTab === "coach" ? "is-active" : ""}`}
+                        to="/coach"
+                    >
                         Тренер
-                    </a>
+                    </Link>
 
-                    <a
-                        className={`trey-navlink ${active === "challenges" ? "is-active" : ""}`}
-                        href="#challenges"
+                    <div
+                        className="trey-navlink"
+                        style={{
+                            cursor: "not-allowed",
+                        }}
+                    >
+                        Анализ
+                    </div>
+
+                    <div
+                        className="trey-navlink"
+                        style={{
+                            cursor: "not-allowed",
+                        }}
                     >
                         Челленджи
-                    </a>
+                    </div>
                 </nav>
 
                 <div className="d-flex align-items-center gap-3">

@@ -7,6 +7,8 @@ import CalendarPage from "./pages/Athlete/CalendarPage";
 import UserProfilePage from "./pages/UserProfilePage";
 import SettingsPage from './pages/SettingsPage';
 import TrainingDetailPage from './pages/TrainingDetailPage';
+import ReportsPage from './pages/Athlete/ReportsPage';
+import CoachPage from './pages/Athlete/CoachPage';
 const App: React.FC = () => {
     return (
         <BrowserRouter>
@@ -22,6 +24,8 @@ const App: React.FC = () => {
                         <Route path="/profile" element={<UserProfilePage />} />
                         <Route path="/settings" element={<SettingsPage />} />
                         <Route path="/training/:id" element={<TrainingDetailPage />} />
+                        <Route path="/reports" element={<ReportsPage />} />
+                        <Route path="/coach" element={<CoachPage />} />
                     </Routes>
                 </main>
 

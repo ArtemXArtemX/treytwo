@@ -95,6 +95,7 @@ const AthleteCalendarPage: React.FC = () => {
                 );
 
                 const fetchedTrainings: TrainingEvent[] = response.map((item) => {
+                    console.log("status_training:", item.status_training, typeof item.status_training);
                     let date = '';
                     let startTime = undefined;
 
@@ -115,7 +116,7 @@ const AthleteCalendarPage: React.FC = () => {
                     return {
                         id: String(item.id),
                         date: date,
-                        status: "done",
+                        status: String(item.status_training) === "Завершено" ? "done" : "planned",
                         name: item.name_training || "Тренировка",
                         sport: item.sport_id,
                         typeTraining: item.type_training_id,
@@ -199,7 +200,7 @@ const AthleteCalendarPage: React.FC = () => {
         const newTraining: TrainingEvent = {
             id: crypto.randomUUID(),
             date: parsed.date,
-            status: parsed.status,
+            status: String(parsed.status_training) === "Завершено" ? "done" : "planned",
             name: parsed.name_training,
             sport: Number(parsed.sport),
             typeTraining: Number(parsed.typeTraining),
@@ -236,7 +237,7 @@ const AthleteCalendarPage: React.FC = () => {
             const updatedTraining: TrainingEvent = {
                 id: training.id,
                 date: training.date,
-                status: training.status,
+                status: String(midData.status_training) === "Завершено" ? "done" : "planned",
                 name: midData.name_training || training.name,
                 sport: midData.sport_id,
                 typeTraining: midData.type_training_id,
