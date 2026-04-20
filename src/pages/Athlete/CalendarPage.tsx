@@ -8,6 +8,7 @@ import Header from "../../components/Header";
 import TrainingDetailsModal from "../../components/modals/TrainingDetailsModal";
 import CreateSessionModal, { CreateSessionPayload } from "../../components/modals/CreateSessionModal";
 import UploadSessionModal, { UploadParsedPayload } from "../../components/modals/UploadSessionModal";
+import PlanTrainingModal from "../../components/modals/PlanSessionModal";
 import authService from "../../api/authService";
 import trainingService from "../../api/trainingService";
 
@@ -227,6 +228,22 @@ const AthleteCalendarPage: React.FC = () => {
         setUploadOpen(false);
     };
 
+    const onPlanSubmit = (payload: any) => {
+        const newTraining: TrainingEvent = {
+            id: crypto.randomUUID(),
+            date: payload.date,
+            status: "planned",
+            name: payload.name,
+            sport: payload.sport_id,
+            typeTraining: payload.type_training_id,
+            note: payload.note,
+            startTime: payload.startTime,
+        };
+        setTrainings((prev) => [...prev, newTraining]);
+        setPlanOpen(false);
+    };
+    const [planOpen, setPlanOpen] = useState(false);
+
     const handleTrainingClick = async (training: TrainingEvent, e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
@@ -323,8 +340,105 @@ const AthleteCalendarPage: React.FC = () => {
                             <div className="trey-page-title" style={{ fontSize: 34 }}>Календарь тренировок</div>
                         </div>
                         <div className="d-flex gap-2">
-                            <button className="btn text-white" style={{ background: "#D1001C", borderRadius: 12, padding: "10px 16px", fontWeight: 700 }} type="button" onClick={() => setCreateOpen(true)}>Создать занятие</button>
-                            <button className="btn border border-secondary text-secondary" style={{ borderRadius: 12, padding: "10px 14px", fontWeight: 700, backgroundColor: 'transparent' }} type="button" onClick={() => setUploadOpen(true)} aria-label="Загрузить занятие" title="Загрузить занятие">
+                            <div className="dropdown">
+                                <button
+                                    className="btn dropdown-toggle"
+                                    type="button"
+                                    data-bs-toggle="dropdown"
+                                    aria-expanded="false"
+                                    style={{
+                                        backgroundColor: "#D1001C",
+                                        color: "white",
+                                        borderRadius: 12,
+                                        padding: "10px 16px",
+                                        fontWeight: 700,
+                                        border: "none",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: "8px"
+                                    }}
+                                >
+                                    Создать занятие
+                                </button>
+                                <ul className="dropdown-menu dropdown-menu-end" style={{
+                                    borderRadius: 12,
+                                    border: "1px solid #e7eaf0",
+                                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                                    padding: "8px 0",
+                                    minWidth: "200px"
+                                }}>
+                                    <li>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => setCreateOpen(true)}
+                                            style={{
+                                                padding: "10px 20px",
+                                                fontSize: "14px",
+                                                fontWeight: 500,
+                                                transition: "all 0.2s",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "10px"
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                e.currentTarget.style.color = "#D1001C";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = "transparent";
+                                                e.currentTarget.style.color = "#333";
+                                            }}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                                            </svg>
+                                            Новое занятие
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => setPlanOpen(true)}
+                                            style={{
+                                                padding: "10px 20px",
+                                                fontSize: "14px",
+                                                fontWeight: 500,
+                                                transition: "all 0.2s",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "10px"
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                e.currentTarget.style.color = "#D1001C";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = "transparent";
+                                                e.currentTarget.style.color = "#333";
+                                            }}
+                                        >
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                                <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                            </svg>
+                                            Запланировать занятие
+                                        </button>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <button
+                                className="btn border border-secondary text-secondary"
+                                style={{
+                                    borderRadius: 12,
+                                    padding: "10px 14px",
+                                    fontWeight: 700,
+                                    backgroundColor: 'transparent'
+                                }}
+                                type="button"
+                                onClick={() => setUploadOpen(true)}
+                                aria-label="Загрузить занятие"
+                                title="Загрузить занятие"
+                            >
                                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ display: "block" }}>
                                     <path d="M12 16V4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
                                     <path d="M7 9l5-5 5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -517,6 +631,7 @@ const AthleteCalendarPage: React.FC = () => {
             </main>
             {createOpen && (<CreateSessionModal onClose={() => setCreateOpen(false)} onSubmit={onCreateSubmit} />)}
             {uploadOpen && (<UploadSessionModal onClose={() => setUploadOpen(false)} onParsed={onUploadParsed} />)}
+            {planOpen && (<PlanTrainingModal onClose={() => setPlanOpen(false)} onSubmit={onPlanSubmit} />)}
             {selectedTraining && (<TrainingDetailsModal training={selectedTraining} onClose={() => setSelectedTraining(null)} formatHms={formatHms} formatPace={formatPace} />)}
         </div>
     );

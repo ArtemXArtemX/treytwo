@@ -470,11 +470,13 @@ const UploadSessionModal: React.FC<Props> = ({ onClose, onParsed }) => {
 
     if (loadingSports || loadingTrainingTypes) {
         return (
-            <div className="modal fade show d-block" style={{ background: "rgba(0,0,0,0.35)" }}>
-                <div className="modal-dialog modal-dialog-centered">
-                    <div className="modal-content text-center py-5">
-                        <div className="spinner-border text-primary" role="status">
-                            <span className="visually-hidden">Загрузка...</span>
+            <div className="modal d-block" tabIndex={-1} role="dialog" style={{ background: "rgba(0,0,0,0.35)" }}>
+                <div className="modal-dialog modal-lg modal-dialog-centered" role="document">
+                    <div className="modal-content" style={{ borderRadius: 16, border: "none" }}>
+                        <div className="modal-body text-center py-5">
+                            <div className="spinner-border text-primary" role="status">
+                                <span className="visually-hidden">Загрузка...</span>
+                            </div>
                         </div>
                     </div>
                 </div>
