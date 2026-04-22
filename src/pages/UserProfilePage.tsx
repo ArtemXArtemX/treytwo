@@ -28,25 +28,13 @@ const UserProfilePage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const currentUser = authService.getCurrentUser();
-                if (!currentUser || !currentUser.id) {
-                    navigate('/login');
-                    return;
-                }
-
-                const response = await api.get(`/User/Get/${currentUser.id}`);
-                setUserData(response.data as UserData);
-            } catch (err) {
-                console.error('Ошибка загрузки данных пользователя:', err);
-                setError('Не удалось загрузить данные профиля');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchUserData();
+        const currentUser = authService.getCurrentUser();
+        if (!currentUser) {
+            navigate('/login');
+            return;
+        }
+        setUserData(currentUser as UserData);
+        setLoading(false);
     }, [navigate]);
 
     const stats = [

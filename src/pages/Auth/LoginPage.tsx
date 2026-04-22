@@ -27,6 +27,7 @@ const LoginPage: React.FC = () => {
             [name]: type === "checkbox" ? checked : value,
         }));
         setError(null);
+        setError(null);
         setSuccess(null);
     };
 
@@ -45,7 +46,7 @@ const LoginPage: React.FC = () => {
             setSuccess("Успешный вход");
 
             setTimeout(() => {
-                navigate("/profile");
+                navigate("/calendar");
             }, 500);
         } catch (err: any) {
             console.error(err);

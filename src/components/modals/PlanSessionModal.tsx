@@ -1,6 +1,7 @@
 import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import sportService from "../../api/sportService";
 import trainingTypeService from "../../api/trainingTypeService";
+import trainingService from "../../api/trainingService";
 import authService from "../../api/authService";
 import { TrainingType } from "../../models/trainingType";
 
@@ -18,6 +19,7 @@ export type PlanTrainingPayload = {
 type Props = {
     onClose: () => void;
     onSubmit: (payload: PlanTrainingPayload) => void;
+    athleteId?: number;
 };
 
 interface Sport {
@@ -25,12 +27,13 @@ interface Sport {
     sport_name: string;
 }
 
-const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
+const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit, athleteId }) => {
     const [sports, setSports] = useState<Sport[]>([]);
     const [loadingSports, setLoadingSports] = useState(true);
     const [trainingTypes, setTrainingTypes] = useState<TrainingType[]>([]);
     const [loadingTrainingTypes, setLoadingTrainingTypes] = useState(true);
     const [error, setError] = useState<string>("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         const fetchSports = async () => {
@@ -146,26 +149,72 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         return hours * 3600 + minutes * 60 + seconds;
     };
 
-    const submit = (ev: FormEvent) => {
+    const submit = async (ev: FormEvent) => {
         ev.preventDefault();
         if (!validate()) return;
 
-        const selectedSport = sports.find(s => s.id.toString() === form.sport);
-        const selectedType = trainingTypes.find(t => t.id.toString() === form.typeTraining);
+        setIsSubmitting(true);
+        setError("");
 
-        const payload: PlanTrainingPayload = {
-            name: form.name,
-            sport: selectedSport?.sport_name || form.sport,
-            typeTraining: selectedType?.type_training_name || form.typeTraining,
-            note: form.note,
-            date: form.date,
-            startTime: form.startTime,
-            distanceKm: parseFloat(form.distanceKm),
-            durationSec: parseTimeInputToSeconds(),
-        };
+        try {
+            const currentUser = authService.getCurrentUser();
+            if (!currentUser) {
+                setError("Ошибка авторизации");
+                setIsSubmitting(false);
+                return;
+            }
 
-        onSubmit(payload);
-        onClose();
+            const durationSec = parseTimeInputToSeconds();
+            const distanceKm = parseFloat(form.distanceKm);
+            const distanceMeters = distanceKm * 1000;
+            const avgSpeed = durationSec > 0 && distanceMeters > 0 ? distanceMeters / durationSec : 0;
+
+            // Формируем локальную дату-время
+            const localDateTime = `${form.date}T${form.startTime}:00`;
+
+            // Подготовка данных для API
+            const trainingData = {
+                sportsman_id: athleteId || currentUser.id,
+                sport_id: Number(form.sport),
+                type_training_id: Number(form.typeTraining),
+                name_training: form.name,
+                local_timestamp: localDateTime,
+                duration: durationSec,
+                distance: distanceMeters,
+                avg_heart_rate: 0,
+                avg_speed: avgSpeed,
+                coach_creator: athleteId ? currentUser.id : null,
+                status_training: 2,
+                description: form.note || ""
+            };
+
+            console.log("📤 Отправка данных планирования:", trainingData);
+
+            // Вызов API (нужно добавить метод в trainingService)
+            await trainingService.createPlannedTraining(trainingData);
+
+            const selectedSport = sports.find(s => s.id.toString() === form.sport);
+            const selectedType = trainingTypes.find(t => t.id.toString() === form.typeTraining);
+
+            const payload: PlanTrainingPayload = {
+                name: form.name,
+                sport: selectedSport?.sport_name || form.sport,
+                typeTraining: selectedType?.type_training_name || form.typeTraining,
+                note: form.note,
+                date: form.date,
+                startTime: form.startTime,
+                distanceKm: distanceKm,
+                durationSec: durationSec,
+            };
+
+            onSubmit(payload);
+            onClose();
+        } catch (err: any) {
+            console.error("❌ Ошибка при планировании тренировки:", err);
+            setError(err.response?.data?.message || "Ошибка при планировании тренировки");
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     if (loadingSports || loadingTrainingTypes) {
@@ -437,7 +486,7 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
 
                                     <div className="col-12">
                                         <label className="form-label">
-                                            Примечания
+                                            Описание
                                         </label>
                                         <textarea
                                             name="note"
@@ -445,7 +494,7 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                                             onChange={handle}
                                             className="form-control"
                                             rows={3}
-                                            placeholder="Примечания к тренировке..."
+                                            placeholder="Опишите запланированное занятие"
                                             style={{
                                                 borderRadius: "8px",
                                                 padding: "10px 12px",
@@ -464,6 +513,7 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                             <button
                                 type="button"
                                 onClick={onClose}
+                                disabled={isSubmitting}
                                 style={{
                                     borderRadius: "8px",
                                     padding: "10px 20px",
@@ -480,16 +530,19 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                             </button>
                             <button
                                 type="submit"
+                                disabled={isSubmitting}
                                 style={{
                                     borderRadius: "8px",
                                     padding: "10px 20px",
                                     fontWeight: 600,
                                     backgroundColor: "#D1001C",
                                     border: "none",
-                                    color: "white"
+                                    color: "white",
+                                    cursor: isSubmitting ? "not-allowed" : "pointer",
+                                    opacity: isSubmitting ? 0.7 : 1
                                 }}
                             >
-                                Запланировать
+                                {isSubmitting ? "Сохранение..." : "Запланировать"}
                             </button>
                         </div>
                     </form>

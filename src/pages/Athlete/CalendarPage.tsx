@@ -80,23 +80,33 @@ const AthleteCalendarPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     useEffect(() => {
-        const fetchAllTrainings = async () => {
+        const fetchTrainingsForPeriod = async () => {
+            if (!currentDateRange) return;
+
             const currentUser = authService.getCurrentUser();
             if (!currentUser) return;
 
             setIsLoading(true);
             try {
-                const startDate = "2000-01-01";
-                const endDate = "2100-01-01";
+                const startStr = currentDateRange.start.toISOString();
+                const endStr = currentDateRange.end.toISOString();
 
                 const response = await trainingService.getTrainings(
                     currentUser.id,
-                    startDate,
-                    endDate
+                    startStr,
+                    endStr
                 );
 
-                const fetchedTrainings: TrainingEvent[] = response.map((item) => {
-                    console.log("status_training:", item.status_training, typeof item.status_training);
+                // response теперь содержит trainings и report
+                const trainingsData = response.trainings || [];
+                const reportData = response.report || {
+                    total_trainings: 0,
+                    total_duration: 0,
+                    total_distance: 0,
+                    total_calories: 0
+                };
+
+                const fetchedTrainings: TrainingEvent[] = trainingsData.map((item: any) => {
                     let date = '';
                     let startTime = undefined;
 
@@ -142,14 +152,16 @@ const AthleteCalendarPage: React.FC = () => {
 
                 setTrainings(fetchedTrainings);
             } catch (error) {
-                console.error("Ошибка загрузки тренировок:", error);
+                console.error("Ошибка загрузки тренировок за период:", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        fetchAllTrainings();
-    }, []);
+        if (currentDateRange) {
+            fetchTrainingsForPeriod();
+        }
+    }, [currentDateRange]);
 
     const trainingsByDate = useMemo(() => {
         const map = new Map<string, TrainingEvent[]>();
@@ -167,6 +179,30 @@ const AthleteCalendarPage: React.FC = () => {
         });
         return map;
     }, [trainings]);
+
+    const statsData = useMemo(() => {
+        if (!currentDateRange) return {
+            totalTrainings: 0,
+            totalDistance: 0,
+            totalTime: 0,
+            totalCalories: 0
+        };
+
+        const { start, end } = currentDateRange;
+        const filteredTrainings = trainings.filter(training => {
+            const trainingDate = new Date(training.date);
+            return trainingDate >= start && trainingDate < end && training.status === "done";
+        });
+
+        const stats = {
+            totalTrainings: filteredTrainings.length,
+            totalDistance: filteredTrainings.reduce((sum, t) => sum + (t.distanceKm || 0), 0),
+            totalTime: filteredTrainings.reduce((sum, t) => sum + (t.durationSec || 0), 0),
+            totalCalories: filteredTrainings.reduce((sum, t) => sum + (t.calories || 0), 0)
+        };
+
+        return stats;
+    }, [trainings, currentDateRange]);
 
     const goPrev = () => calendarRef.current?.getApi().prev();
     const goNext = () => calendarRef.current?.getApi().next();
@@ -238,6 +274,8 @@ const AthleteCalendarPage: React.FC = () => {
             typeTraining: payload.type_training_id,
             note: payload.note,
             startTime: payload.startTime,
+            distanceKm: payload.distanceKm,
+            durationSec: payload.durationSec
         };
         setTrainings((prev) => [...prev, newTraining]);
         setPlanOpen(false);
@@ -298,37 +336,6 @@ const AthleteCalendarPage: React.FC = () => {
             end: arg.view.currentEnd
         });
     };
-
-    const stats = useMemo(() => {
-        if (!currentDateRange) return {
-            totalTrainings: 0,
-            totalDistance: 0,
-            totalTime: 0,
-            totalCalories: 0
-        };
-
-        const { start, end } = currentDateRange;
-        const filteredTrainings = trainings.filter(training => {
-            const trainingDate = new Date(training.date);
-            return trainingDate >= start && trainingDate < end;
-        });
-
-        const stats = {
-            totalTrainings: 0,
-            totalDistance: 0,
-            totalTime: 0,
-            totalCalories: 0
-        };
-
-        filteredTrainings.forEach(training => {
-            stats.totalTrainings++;
-            if (training.distanceKm) stats.totalDistance += training.distanceKm;
-            if (training.durationSec) stats.totalTime += training.durationSec;
-            if (training.calories) stats.totalCalories += training.calories;
-        });
-
-        return stats;
-    }, [trainings, currentDateRange]);
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "var(--trey-bg)" as any }}>
@@ -602,25 +609,25 @@ const AthleteCalendarPage: React.FC = () => {
                             <div className="row g-3">
                                 <div className="col-6 col-md-3">
                                     <div className="text-center">
-                                        <div className="fs-5 fw-bold">{stats.totalTrainings}</div>
+                                        <div className="fs-5 fw-bold">{statsData.totalTrainings}</div>
                                         <div className="text-muted small">Занятий</div>
                                     </div>
                                 </div>
                                 <div className="col-6 col-md-3">
                                     <div className="text-center">
-                                        <div className="fs-5 fw-bold">{stats.totalDistance.toFixed(1)}</div>
+                                        <div className="fs-5 fw-bold">{statsData.totalDistance.toFixed(2)}</div>
                                         <div className="text-muted small">км</div>
                                     </div>
                                 </div>
                                 <div className="col-6 col-md-3">
                                     <div className="text-center">
-                                        <div className="fs-5 fw-bold">{formatHms(stats.totalTime)}</div>
+                                        <div className="fs-5 fw-bold">{formatHms(statsData.totalTime)}</div>
                                         <div className="text-muted small">Время</div>
                                     </div>
                                 </div>
                                 <div className="col-6 col-md-3">
                                     <div className="text-center">
-                                        <div className="fs-5 fw-bold">{stats.totalCalories}</div>
+                                        <div className="fs-5 fw-bold">{statsData.totalCalories}</div>
                                         <div className="text-muted small">ккал</div>
                                     </div>
                                 </div>

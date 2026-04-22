@@ -40,6 +40,7 @@ export interface UserResponse {
     user_hr_max: number;
     user_pace_max: number | null;
     sportId: number;
+    token?: string;
 }
 
 class AuthService {
@@ -48,7 +49,12 @@ class AuthService {
         const userData = response.data as UserResponse;
 
         if (userData) {
+            if (userData.token) {
+                localStorage.setItem('token', userData.token);
+            }
+
             localStorage.setItem('user', JSON.stringify(userData));
+
             if (userData.id) {
                 localStorage.setItem('userId', String(userData.id));
             }
@@ -58,7 +64,13 @@ class AuthService {
 
     async register(data: RegisterRequest): Promise<UserResponse> {
         const response = await api.post<any>('/User/Create', data);
-        return response.data as UserResponse;
+        const userData = response.data as UserResponse;
+        
+        if (userData && userData.token) {
+            localStorage.setItem('token', userData.token);
+        }
+
+        return userData;
     }
 
     logout(): void {
@@ -78,6 +90,10 @@ class AuthService {
             }
         }
         return null;
+    }
+
+    getToken(): string | null {
+        return localStorage.getItem('token');
     }
 }
 

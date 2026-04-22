@@ -47,6 +47,16 @@ export interface TrainingUploadData {
     }> | null;
 }
 
+export interface GetLowResponse {
+    trainings: TrainingResponse[];
+    report: {
+        total_trainings: number;
+        total_duration: number;
+        total_distance: number;
+        total_calories: number;
+    };
+}
+
 export interface TrainingResponse {
     id: number;
     sportsman_id: number;
@@ -139,12 +149,13 @@ class TrainingService {
         return response.data;
     }
 
-    async getTrainings(sportsmanId: number, startDate: string, endDate: string): Promise<TrainingResponse[]> {
-        const response = await api.get<TrainingResponse[]>('/Training/GetLow', {
+    async getTrainings(sportsmanId: number, startDate: string, endDate: string): Promise<GetLowResponse> {
+        const response = await api.get<GetLowResponse>('/Training/GetLow', {
             params: {
-                sportsman_id: sportsmanId,
                 start: startDate,
-                end: endDate
+                end: endDate,
+                start_report: startDate,
+                end_report: endDate
             }
         });
         return response.data;
@@ -174,27 +185,6 @@ class TrainingService {
         return response.data;
     }
 
-    async patchStressScore(id: number, score: number): Promise<TrainingResponse> {
-        const response = await api.patch<TrainingResponse>(`/Training/Patch/StressScore/${id}`, null, {
-            params: { score }
-        });
-        return response.data;
-    }
-
-    async patchFeelingScore(id: number, score: number): Promise<TrainingResponse> {
-        const response = await api.patch<TrainingResponse>(`/Training/Patch/FeelingScore/${id}`, null, {
-            params: { score }
-        });
-        return response.data;
-    }
-
-    async patchComment(id: number, comment: string): Promise<TrainingResponse> {
-        const response = await api.patch<TrainingResponse>(`/Training/Patch/CommentSportsman/${id}`, null, {
-            params: { comment }
-        });
-        return response.data;
-    }
-
     async patchLapCaption(id: number, lapId: number, caption: string): Promise<TrainingResponse> {
         const response = await api.patch<TrainingResponse>(`/Training/Patch/LapCaption/${id}`, null, {
             params: { lap_id: lapId, caption }
@@ -204,6 +194,11 @@ class TrainingService {
 
     async updateTraining(id: number, data: any): Promise<TrainingResponse> {
         const response = await api.put<TrainingResponse>(`/Training/Update`, data);
+        return response.data;
+    }
+
+    async createPlannedTraining(data: any): Promise<any> {
+        const response = await api.post('/Training/CreatePlannedTrainingBySportsman', data);
         return response.data;
     }
 }

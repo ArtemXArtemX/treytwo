@@ -106,7 +106,8 @@ const CoachCalendarPage: React.FC = () => {
                     endDate
                 );
 
-                const fetchedTrainings: TrainingEvent[] = response.map((item) => {
+                const trainingsData = response.trainings || [];
+                const fetchedTrainings: TrainingEvent[] = trainingsData.map((item: any) => {
                     let date = '';
                     let startTime = undefined;
 
