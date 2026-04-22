@@ -688,7 +688,7 @@ const ReportsPage: React.FC = () => {
                                 <h5 style={{ fontWeight: 600, marginBottom: "20px" }}>Зоны пульса</h5>
                                 <div className="py-5 text-muted">
                                     <i className="bi bi-heart-pulse fs-1"></i>
-                                    <p className="mt-3">Данные по зонам пульса появятся после подключения к бэкенду</p>
+                                    <p className="mt-3">Данные по зонам пульса появятся как Эмилька разберется с этим</p>
                                 </div>
                             </div>
                         </div>
