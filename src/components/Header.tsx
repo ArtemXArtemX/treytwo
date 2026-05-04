@@ -1,15 +1,19 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useRole } from "../context/RoleContext";
 import logo from "../assets/logo.svg";
+import api from "../api/axios";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 
 type Props = {
-    active?: "calendar" | "report" | "analysis" | "coach" | "challenges";
+    active?: "calendar" | "report" | "analysis" | "coach" | "challenges" | "sportsmans";
 };
 
 const Header: React.FC<Props> = ({ active }) => {
     const location = useLocation();
+    const navigate = useNavigate();
+    const { isCoach } = useRole();
 
     const getActiveTab = () => {
         if (active) return active;
@@ -18,12 +22,30 @@ const Header: React.FC<Props> = ({ active }) => {
         if (path === "/calendar" || path === "/") return "calendar";
         if (path === "/reports") return "report";
         if (path === "/analysis") return "analysis";
-        if (path === "/coach") return "coach";
+        if (isCoach && path === "/sportsmans") return "sportsmans";
+        if (!isCoach && path === "/coaches") return "coach";
         if (path === "/challenges") return "challenges";
         return "calendar";
     };
 
     const activeTab = getActiveTab();
+
+    const handleLogout = async () => {
+        try {
+            const refreshToken = localStorage.getItem("refreshToken");
+            if (refreshToken) {
+                await api.post("/User/logout", { refreshToken });
+            }
+        } catch (error) {
+            console.error("Ошибка при выходе:", error);
+        } finally {
+            localStorage.removeItem("token");
+            localStorage.removeItem("refreshToken");
+            localStorage.removeItem("user");
+            localStorage.removeItem("userId");
+            window.location.href = "/login";
+        }
+    };
 
     return (
         <header className="bg-white border-bottom">
@@ -49,12 +71,21 @@ const Header: React.FC<Props> = ({ active }) => {
                         Отчёты
                     </Link>
 
-                    <Link
-                        className={`trey-navlink ${activeTab === "coach" ? "is-active" : ""}`}
-                        to="/coach"
-                    >
-                        Тренер
-                    </Link>
+                    {isCoach ? (
+                        <Link
+                            className={`trey-navlink ${activeTab === "sportsmans" ? "is-active" : ""}`}
+                            to="/sportsmans"
+                        >
+                            Спортсмены
+                        </Link>
+                    ) : (
+                        <Link
+                            className={`trey-navlink ${activeTab === "coach" ? "is-active" : ""}`}
+                            to="/coaches"
+                        >
+                            Тренеры
+                        </Link>
+                    )}
 
                     <div
                         className="trey-navlink"
@@ -124,7 +155,7 @@ const Header: React.FC<Props> = ({ active }) => {
                             </Link>
 
                             <div className="dropdown-divider"></div>
-                            <button className="dropdown-item text-danger">
+                            <button onClick={handleLogout} className="dropdown-item text-danger">
                                 <i className="bi bi-box-arrow-right me-2"></i>
                                 Выйти
                             </button>

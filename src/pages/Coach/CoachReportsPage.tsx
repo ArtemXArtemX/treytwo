@@ -449,7 +449,7 @@ const CoachReportsPage: React.FC = () => {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
-            <Header active="report" />
+            <Header/>
             <main style={{ flex: 1, position: "relative" }}>
                 <div className="container py-4">
                     <button

@@ -14,7 +14,7 @@ interface UserData {
     user_gender: boolean;
     user_height: number;
     user_weight: number;
-    user_only_coach: boolean;
+    user_only_coach: number;
     user_hr_rest: number;
     user_hr_max: number;
     user_pace_max: number | null;
@@ -91,8 +91,8 @@ const UserProfilePage: React.FC = () => {
             <div className="container py-4">
                 <div className="row">
                     <div className="col-md-4 d-flex flex-column">
-                        <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px", height: "400px" }}>
-                            <div className="card-body p-4 d-flex flex-column" style={{ height: "100%" }}>
+                        <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+                            <div className="card-body p-4 d-flex flex-column">
                                 <div className="text-center mb-4">
                                     <div
                                         className="rounded-circle mx-auto mb-3 border"
@@ -241,7 +241,7 @@ const UserProfilePage: React.FC = () => {
                                                 Рост
                                             </label>
                                             <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                {userData.user_height ? `${userData.user_height} см` : "Не указано"}
+                                                {userData.user_height ? `${(userData.user_height * 100).toFixed(0)} см` : "Не указано"}
                                             </div>
                                         </div>
 

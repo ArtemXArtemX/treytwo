@@ -402,18 +402,18 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Дата рождения
+                                                Логин
                                             </label>
                                             {editMode.general ? (
                                                 <input
-                                                    type="date"
+                                                    type="text"
                                                     className="form-control"
-                                                    value={generalForm.user_birthday}
-                                                    onChange={(e) => setGeneralForm({ ...generalForm, user_birthday: e.target.value })}
+                                                    value={generalForm.user_nickname}
+                                                    onChange={(e) => setGeneralForm({ ...generalForm, user_nickname: e.target.value })}
                                                 />
                                             ) : (
                                                 <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                    {formatDate(user?.user_birthday || "")}
+                                                    {user?.user_nickname}
                                                 </div>
                                             )}
                                         </div>
@@ -440,18 +440,18 @@ const SettingsPage: React.FC = () => {
 
                                         <div className="col-md-6 mb-3">
                                             <label className="form-label" style={{ color: "#666", fontWeight: 500 }}>
-                                                Логин
+                                                Дата рождения
                                             </label>
                                             {editMode.general ? (
                                                 <input
-                                                    type="text"
+                                                    type="date"
                                                     className="form-control"
-                                                    value={generalForm.user_nickname}
-                                                    onChange={(e) => setGeneralForm({ ...generalForm, user_nickname: e.target.value })}
+                                                    value={generalForm.user_birthday}
+                                                    onChange={(e) => setGeneralForm({ ...generalForm, user_birthday: e.target.value })}
                                                 />
                                             ) : (
                                                 <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                    {user?.user_nickname}
+                                                    {formatDate(user?.user_birthday || "")}
                                                 </div>
                                             )}
                                         </div>
@@ -599,12 +599,12 @@ const SettingsPage: React.FC = () => {
                                                 <input
                                                     type="number"
                                                     className="form-control"
-                                                    value={anthropometryForm.user_height}
-                                                    onChange={(e) => setAnthropometryForm({ ...anthropometryForm, user_height: Number(e.target.value) })}
+                                                    value={anthropometryForm.user_height ? (anthropometryForm.user_height * 100).toFixed(0) : ''}
+                                                    onChange={(e) => setAnthropometryForm({ ...anthropometryForm, user_height: Number(e.target.value) / 100 })}
                                                 />
                                             ) : (
                                                 <div className="form-control-plaintext" style={{ color: "#1a1a1a" }}>
-                                                    {user?.user_height ? `${user.user_height} см` : "Не указано"}
+                                                    {user?.user_height ? `${(user.user_height * 100).toFixed(0)} см` : "Не указано"}
                                                 </div>
                                             )}
                                         </div>
@@ -757,7 +757,7 @@ const SettingsPage: React.FC = () => {
                                                     <span style={{ color: '#666', fontSize: '14px', display: 'block', marginBottom: '5px' }}>Индекс массы тела (ИМТ):</span>
                                                     <div style={{ color: '#1a1a1a', fontWeight: 500, fontSize: '16px' }}>
                                                         {user?.user_height && user?.user_weight
-                                                            ? (user.user_weight / ((user.user_height/100) * (user.user_height/100))).toFixed(1)
+                                                            ? (user.user_weight / ((user.user_height) * (user.user_height))).toFixed(1)
                                                             : '—'}
                                                     </div>
                                                 </div>

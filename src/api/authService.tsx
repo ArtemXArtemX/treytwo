@@ -35,7 +35,7 @@ export interface UserResponse {
     user_gender: boolean;
     user_height: number;
     user_weight: number;
-    user_only_coach: boolean;
+    user_only_coach: number;
     user_hr_rest: number;
     user_hr_max: number;
     user_pace_max: number | null;
@@ -46,15 +46,17 @@ export interface UserResponse {
 class AuthService {
     async login(data: LoginRequest): Promise<UserResponse> {
         const response = await api.post<any>('/User/Auth', data);
-        const userData = response.data as UserResponse;
+        let userData = response.data as UserResponse;
+
+        if (userData && typeof userData.user_only_coach === 'boolean') {
+            userData = {
+                ...userData,
+                user_only_coach: userData.user_only_coach ? 1 : 0
+            };
+        }
 
         if (userData) {
-            if (userData.token) {
-                localStorage.setItem('token', userData.token);
-            }
-
             localStorage.setItem('user', JSON.stringify(userData));
-
             if (userData.id) {
                 localStorage.setItem('userId', String(userData.id));
             }
@@ -64,10 +66,13 @@ class AuthService {
 
     async register(data: RegisterRequest): Promise<UserResponse> {
         const response = await api.post<any>('/User/Create', data);
-        const userData = response.data as UserResponse;
-        
-        if (userData && userData.token) {
-            localStorage.setItem('token', userData.token);
+        let userData = response.data as UserResponse;
+
+        if (userData && typeof userData.user_only_coach === 'boolean') {
+            userData = {
+                ...userData,
+                user_only_coach: userData.user_only_coach ? 1 : 0
+            };
         }
 
         return userData;
@@ -90,10 +95,6 @@ class AuthService {
             }
         }
         return null;
-    }
-
-    getToken(): string | null {
-        return localStorage.getItem('token');
     }
 }
 

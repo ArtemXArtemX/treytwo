@@ -79,6 +79,13 @@ const AthleteCalendarPage: React.FC = () => {
     const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
 
+    const [reportData, setReportData] = useState({
+        total_trainings: 0,
+        total_duration: 0,
+        total_distance: 0,
+        total_calories: 0
+    });
+
     useEffect(() => {
         const fetchTrainingsForPeriod = async () => {
             if (!currentDateRange) return;
@@ -97,15 +104,14 @@ const AthleteCalendarPage: React.FC = () => {
                     endStr
                 );
 
-                // response теперь содержит trainings и report
-                const trainingsData = response.trainings || [];
-                const reportData = response.report || {
+                setReportData(response.report || {
                     total_trainings: 0,
                     total_duration: 0,
                     total_distance: 0,
                     total_calories: 0
-                };
+                });
 
+                const trainingsData = response.trainings || [];
                 const fetchedTrainings: TrainingEvent[] = trainingsData.map((item: any) => {
                     let date = '';
                     let startTime = undefined;
@@ -188,21 +194,13 @@ const AthleteCalendarPage: React.FC = () => {
             totalCalories: 0
         };
 
-        const { start, end } = currentDateRange;
-        const filteredTrainings = trainings.filter(training => {
-            const trainingDate = new Date(training.date);
-            return trainingDate >= start && trainingDate < end && training.status === "done";
-        });
-
-        const stats = {
-            totalTrainings: filteredTrainings.length,
-            totalDistance: filteredTrainings.reduce((sum, t) => sum + (t.distanceKm || 0), 0),
-            totalTime: filteredTrainings.reduce((sum, t) => sum + (t.durationSec || 0), 0),
-            totalCalories: filteredTrainings.reduce((sum, t) => sum + (t.calories || 0), 0)
+        return {
+            totalTrainings: reportData.total_trainings,
+            totalDistance: reportData.total_distance / 1000,
+            totalTime: reportData.total_duration,
+            totalCalories: reportData.total_calories
         };
-
-        return stats;
-    }, [trainings, currentDateRange]);
+    }, [reportData, currentDateRange]);
 
     const goPrev = () => calendarRef.current?.getApi().prev();
     const goNext = () => calendarRef.current?.getApi().next();

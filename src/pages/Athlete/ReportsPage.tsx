@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import Header from '../../components/Header';
+import reportService, { ReportResponse, ReportBin, PieItem } from '../../api/reportService';
 
 ChartJS.register(
     CategoryScale,
@@ -50,15 +51,6 @@ interface ChartDataPoint {
     descent: number;
 }
 
-interface Distribution {
-    id: number;
-    name: string;
-    duration: number;
-    distance: number;
-    sessions: number;
-    color: string;
-}
-
 interface ExtraChart {
     id: string;
     metric: string;
@@ -66,117 +58,7 @@ interface ExtraChart {
 }
 
 type Period = 'year' | 'month' | 'week' | 'custom';
-
-const generateMockData = (period: Period): { chartData: ChartDataPoint[], metrics: Metrics } => {
-    let points: ChartDataPoint[] = [];
-    let metrics: Metrics = {
-        totalTrainings: 0,
-        totalDistance: 0,
-        totalDuration: 0,
-        avgPace: 0,
-        totalCalories: 0,
-        totalAscent: 0,
-        totalDescent: 0
-    };
-
-    if (period === 'year') {
-        const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-        for (let i = 0; i < 12; i++) {
-            const distance = 50 + Math.random() * 100;
-            const duration = 18000 + Math.random() * 36000;
-            const sessions = Math.floor(5 + Math.random() * 15);
-            const ascent = 200 + Math.random() * 800;
-            const descent = 180 + Math.random() * 750;
-            const avgSpeedMps = 3 + Math.random() * 4;
-
-            points.push({
-                date: months[i],
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: ascent,
-                descent: descent,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-            metrics.totalAscent += ascent;
-            metrics.totalDescent += descent;
-        }
-    } else if (period === 'month') {
-        for (let i = 1; i <= 30; i++) {
-            const distance = 3 + Math.random() * 15;
-            const duration = 1800 + Math.random() * 5400;
-            const sessions = Math.floor(1 + Math.random() * 3);
-            const avgSpeedMps = 3 + Math.random() * 4;
-
-            points.push({
-                date: `${i}`,
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: 20 + Math.random() * 150,
-                descent: 15 + Math.random() * 130,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-        }
-    } else {
-        const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-        for (let i = 0; i < 7; i++) {
-            const distance = 3 + Math.random() * 12;
-            const duration = 1200 + Math.random() * 3600;
-            const sessions = Math.floor(1 + Math.random() * 2);
-            const avgSpeedMps = 3 + Math.random() * 4;
-
-            points.push({
-                date: days[i],
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: 15 + Math.random() * 100,
-                descent: 10 + Math.random() * 90,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-        }
-    }
-
-    const totalHours = metrics.totalDuration / 3600;
-    const avgSpeedMps = totalHours > 0 ? metrics.totalDistance / totalHours : 0;
-    metrics.avgPace = avgSpeedMps > 0 ? 1000 / avgSpeedMps : 0;
-    metrics.totalCalories = Math.round(metrics.totalDistance * 70);
-
-    return { chartData: points, metrics };
-};
-
-const sportDistributions: Distribution[] = [
-    { id: 1, name: 'Бег', duration: 28000, distance: 110, sessions: 15, color: '#D1001C' },
-    { id: 2, name: 'Велоспорт', duration: 12000, distance: 35, sessions: 5, color: '#0d6efd' },
-    { id: 3, name: 'Плавание', duration: 4000, distance: 8, sessions: 2, color: '#198754' },
-    { id: 4, name: 'Силовая', duration: 1120, distance: 3.8, sessions: 1, color: '#ffc107' },
-];
-
-const trainingTypeDistributions: Distribution[] = [
-    { id: 1, name: 'Длительная', duration: 18000, distance: 70, sessions: 8, color: '#D1001C' },
-    { id: 2, name: 'Интервальная', duration: 12000, distance: 45, sessions: 6, color: '#0d6efd' },
-    { id: 3, name: 'Темповая', duration: 9000, distance: 30, sessions: 5, color: '#198754' },
-    { id: 4, name: 'Восстановительная', duration: 6120, distance: 11.8, sessions: 4, color: '#ffc107' },
-];
+type BinType = 'day' | 'week' | 'month';
 
 const formatDuration = (seconds: number): string => {
     const h = Math.floor(seconds / 3600);
@@ -207,7 +89,8 @@ const ReportsPage: React.FC = () => {
     const [customStart, setCustomStart] = useState<Date | null>(null);
     const [customEnd, setCustomEnd] = useState<Date | null>(null);
     const [showCustomPicker, setShowCustomPicker] = useState(false);
-    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+    const [loading, setLoading] = useState(true);
+
     const [metrics, setMetrics] = useState<Metrics>({
         totalTrainings: 0,
         totalDistance: 0,
@@ -218,18 +101,119 @@ const ReportsPage: React.FC = () => {
         totalDescent: 0
     });
 
+    const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
+
+    const [sportSessionPie, setSportSessionPie] = useState<PieItem[]>([]);
+    const [sportDistancePie, setSportDistancePie] = useState<PieItem[]>([]);
+    const [sportDurationPie, setSportDurationPie] = useState<PieItem[]>([]);
+    const [typePie, setTypePie] = useState<PieItem[]>([]);
+    const avgPaceSecPerKm = metrics.avgPace > 0 ? 1000 / metrics.avgPace : 0;
+
+    const pieColors = ['#D1001C', '#0d6efd', '#198754', '#ffc107', '#6f42c1', '#fd7e14', '#20c997', '#dc3545'];
+
     const [barMetric, setBarMetric] = useState<'distance' | 'duration' | 'ascent' | 'descent'>('distance');
     const [leftLineMetric, setLeftLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('pace');
     const [rightLineMetric, setRightLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('none');
-
     const [extraCharts, setExtraCharts] = useState<ExtraChart[]>([
         { id: 'extra1', metric: 'avgHr', color: '#D1001C' },
     ]);
 
+    const getBinFromPeriod = (period: Period, startDate?: Date, endDate?: Date): BinType => {
+        if (period === 'year') return 'month';
+        if (period === 'month') return 'day';
+        if (period === 'week') return 'day';
+
+        if (startDate && endDate) {
+            const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24));
+            if (daysDiff <= 7) return 'day';
+            if (daysDiff <= 30) return 'day';
+            if (daysDiff <= 90) return 'week';
+            return 'month';
+        }
+        return 'day';
+    };
+
+    // Получение дат для запроса
+    const getDateRange = (): { start: string; end: string } => {
+        const now = new Date();
+        let start: Date;
+        let end: Date = new Date();
+
+        if (period === 'year') {
+            start = new Date(now.getFullYear(), 0, 1);
+            end = new Date(now.getFullYear(), 11, 31);
+        } else if (period === 'month') {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        } else if (period === 'week') {
+            const day = now.getDay();
+            const diff = day === 0 ? 6 : day - 1;
+            start = new Date(now);
+            start.setDate(now.getDate() - diff);
+            start.setHours(0, 0, 0, 0);
+            end = new Date(start);
+            end.setDate(start.getDate() + 6);
+        } else if (customStart && customEnd) {
+            start = customStart;
+            end = customEnd;
+        } else {
+            start = new Date();
+            start.setDate(now.getDate() - 30);
+            end = now;
+        }
+
+        return {
+            start: start.toISOString().split('T')[0],
+            end: end.toISOString().split('T')[0]
+        };
+    };
+
+    // Загрузка данных
+    const fetchReport = async () => {
+        setLoading(true);
+        try {
+            const { start, end } = getDateRange();
+            const bin = getBinFromPeriod(period, customStart || undefined, customEnd || undefined);
+
+            const data: ReportResponse = await reportService.getReport(start, end, bin);
+
+            setMetrics({
+                totalTrainings: data.overview.total_trainings,
+                totalDistance: data.overview.total_distance,
+                totalDuration: data.overview.total_duration,
+                avgPace: data.overview.avg_pace,
+                totalCalories: data.overview.total_calories,
+                totalAscent: data.overview.total_ascent,
+                totalDescent: data.overview.total_descent
+            });
+
+            const binsData: ChartDataPoint[] = data.reportBins.map(bin => ({
+                date: bin.bin_period,
+                distance: bin.total_distance / 1000,
+                duration: bin.total_duration,
+                sessions: bin.total_trainings,
+                avgSpeed: bin.avg_pace > 0 ? 1000 / bin.avg_pace : 0,
+                maxSpeed: bin.max_speed,
+                avgHr: bin.avg_heart_rate,
+                ascent: bin.total_ascent,
+                descent: bin.total_descent
+            }));
+            setChartData(binsData);
+
+            setSportSessionPie(data.sportSessionPie);
+            setSportDistancePie(data.sportDistancePie);
+            setSportDurationPie(data.sportDurationPie);
+            setTypePie(data.typePie);
+
+        } catch (error) {
+            console.error('Ошибка загрузки отчёта:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const { chartData: data, metrics: newMetrics } = generateMockData(period);
-        setChartData(data);
-        setMetrics(newMetrics);
+        fetchReport();
     }, [period, customStart, customEnd]);
 
     const addExtraChart = () => {
@@ -251,7 +235,7 @@ const ReportsPage: React.FC = () => {
 
     const barDataValues = chartData.map(d => {
         switch (barMetric) {
-            case 'distance': return d.distance;
+            case 'distance': return parseFloat(d.distance.toFixed(2));
             case 'duration': return d.duration / 60;
             case 'ascent': return d.ascent;
             case 'descent': return d.descent;
@@ -262,7 +246,7 @@ const ReportsPage: React.FC = () => {
     const getLineData = (metric: string) => {
         if (metric === 'none') return [];
         if (metric === 'pace') {
-            return chartData.map(d => d.avgSpeed > 0 ? 1000 / d.avgSpeed : 0);
+            return chartData.map(d => d.avgSpeed > 0 ? d.avgSpeed / 60 : 0);
         }
         return chartData.map(d => d[metric as keyof ChartDataPoint] as number);
     };
@@ -288,11 +272,11 @@ const ReportsPage: React.FC = () => {
 
     const getExtraChartData = (metric: string) => {
         switch (metric) {
-            case 'distance': return chartData.map(d => d.distance);
+            case 'distance': return chartData.map(d => parseFloat(d.distance.toFixed(2)));
             case 'duration': return chartData.map(d => d.duration / 60);
             case 'ascent': return chartData.map(d => d.ascent);
             case 'descent': return chartData.map(d => d.descent);
-            case 'pace': return chartData.map(d => d.avgSpeed > 0 ? 1000 / d.avgSpeed : 0);
+            case 'pace': return chartData.map(d => d.avgSpeed > 0 ? d.avgSpeed / 60 : 0);
             case 'maxSpeed': return chartData.map(d => d.maxSpeed);
             case 'avgHr': return chartData.map(d => d.avgHr);
             case 'sessions': return chartData.map(d => d.sessions);
@@ -309,18 +293,49 @@ const ReportsPage: React.FC = () => {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index' as const, intersect: false },
-        plugins: { legend: { position: 'top' as const } },
+        plugins: {
+            legend: { position: 'top' as const },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const label = context.dataset.label || '';
+                        let value = context.raw;
+                        if (label.includes('Темп') && value > 0) {
+                            const minutes = Math.floor(value);
+                            const seconds = Math.round((value - minutes) * 60);
+                            return `${label}: ${minutes}:${seconds.toString().padStart(2, '0')} /км`;
+                        }
+                        return `${label}: ${value}`;
+                    }
+                }
+            }
+        },
         scales: {
             y: {
                 title: { display: true, text: barUnit },
                 beginAtZero: true,
                 grid: { color: '#e9ecef' },
+                ticks: {
+                    callback: (value: any) => {
+                        return value;
+                    }
+                }
             },
             y1: {
                 position: 'right' as const,
                 title: { display: true, text: getLineUnit(leftLineMetric) },
                 beginAtZero: true,
                 grid: { drawOnChartArea: false },
+                ticks: {
+                    callback: (value: any) => {
+                        if (getLineUnit(leftLineMetric) === 'мин/км') {
+                            const minutes = Math.floor(value);
+                            const seconds = Math.round((value - minutes) * 60);
+                            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }
+                        return value;
+                    }
+                }
             },
             ...(rightLineMetric !== 'none' && {
                 y2: {
@@ -328,7 +343,17 @@ const ReportsPage: React.FC = () => {
                     title: { display: true, text: getLineUnit(rightLineMetric) },
                     beginAtZero: true,
                     grid: { drawOnChartArea: false },
-                    ticks: { color: '#D1001C' },
+                    ticks: {
+                        color: '#D1001C',
+                        callback: (value: any) => {
+                            if (getLineUnit(rightLineMetric) === 'мин/км') {
+                                const minutes = Math.floor(value);
+                                const seconds = Math.round((value - minutes) * 60);
+                                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                            }
+                            return value;
+                        }
+                    }
                 }
             })
         },
@@ -377,14 +402,14 @@ const ReportsPage: React.FC = () => {
         ],
     };
 
-    const createPieConfig = (data: Distribution[], valueKey: 'duration' | 'distance' | 'sessions') => {
-        const total = data.reduce((sum, d) => sum + d[valueKey], 0);
+    const createPieConfig = (data: PieItem[]) => {
+        const total = data.reduce((sum, item) => sum + item.value, 0);
         return {
             data: {
-                labels: data.map(d => d.name),
+                labels: data.map(item => `${item.caption} (${((item.value / total) * 100).toFixed(1)}%)`),
                 datasets: [{
-                    data: data.map(d => d[valueKey]),
-                    backgroundColor: data.map(d => d.color),
+                    data: data.map(item => item.value),
+                    backgroundColor: pieColors.slice(0, data.length),
                     borderWidth: 0,
                 }],
             },
@@ -397,8 +422,7 @@ const ReportsPage: React.FC = () => {
                             label: (context: any) => {
                                 const value = context.raw;
                                 const percentage = ((value / total) * 100).toFixed(1);
-                                const unit = valueKey === 'duration' ? 'мин' : valueKey === 'distance' ? 'км' : 'сессий';
-                                return `${context.label}: ${value} ${unit} (${percentage}%)`;
+                                return `${context.label.split(' (')[0]}: ${value} (${percentage}%)`;
                             }
                         }
                     },
@@ -413,9 +437,9 @@ const ReportsPage: React.FC = () => {
 
     const metricsCards = [
         { label: 'Всего тренировок', value: metrics.totalTrainings, unit: '' },
-        { label: 'Общая дистанция', value: metrics.totalDistance.toFixed(1), unit: 'км' },
+        { label: 'Общая дистанция', value: (metrics.totalDistance / 1000).toFixed(2), unit: 'км' },
         { label: 'Общее время', value: formatDuration(metrics.totalDuration), unit: '' },
-        { label: 'Средний темп', value: formatPace(metrics.avgPace), unit: '/км' },
+        { label: 'Средний темп', value: formatPace(avgPaceSecPerKm), unit: '/км' },
         { label: 'Калории', value: metrics.totalCalories, unit: 'ккал' },
         { label: 'Набор высоты', value: metrics.totalAscent.toFixed(1), unit: 'м' },
         { label: 'Спуск', value: metrics.totalDescent.toFixed(1), unit: 'м' },
@@ -428,9 +452,22 @@ const ReportsPage: React.FC = () => {
         scales: { y: { beginAtZero: true } },
     };
 
+    if (loading) {
+        return (
+            <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
+                <Header/>
+                <div className="container py-4 text-center">
+                    <div className="spinner-border text-danger" role="status">
+                        <span className="visually-hidden">Загрузка...</span>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
-            <Header active="report" />
+            <Header/>
             <div className="container py-4">
                 <div className="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
                     <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1a1a1a", margin: 0 }}>Отчёты</h1>
@@ -514,112 +551,147 @@ const ReportsPage: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
-                    <div className="card-body p-4">
-                        <div className="d-flex justify-content-between align-items-center flex-wrap mb-4">
-                            <h5 style={{ fontWeight: 600, margin: 0 }}>Анализ тренировок</h5>
-                            <div className="d-flex gap-3 flex-wrap">
-                                <select className="form-select form-select-sm w-auto" value={barMetric} onChange={(e) => setBarMetric(e.target.value as any)}>
-                                    <option value="distance">Дистанция (км)</option>
-                                    <option value="duration">Продолжительность (мин)</option>
-                                    <option value="ascent">Подъём (м)</option>
-                                    <option value="descent">Спуск (м)</option>
-                                </select>
-                                <select className="form-select form-select-sm w-auto" value={leftLineMetric} onChange={(e) => setLeftLineMetric(e.target.value as any)}>
-                                    <option value="none">— левая ось —</option>
-                                    <option value="pace">Темп (мин/км)</option>
-                                    <option value="maxSpeed">Макс. скорость (м/с)</option>
-                                    <option value="avgHr">Пульс (уд/мин)</option>
-                                </select>
-                                <select className="form-select form-select-sm w-auto" value={rightLineMetric} onChange={(e) => setRightLineMetric(e.target.value as any)}>
-                                    <option value="none">— правая ось —</option>
-                                    <option value="pace">Темп (мин/км)</option>
-                                    <option value="maxSpeed">Макс. скорость (м/с)</option>
-                                    <option value="avgHr">Пульс (уд/мин)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <div style={{ height: "400px" }}>
-                            <Line data={combinedChartConfig as any} options={combinedChartOptions as any} />
-                        </div>
-                    </div>
-                </div>
-
-                {extraCharts.map((chart, index) => {
-                    const data = getExtraChartData(chart.metric);
-                    const unit = getExtraChartUnit(chart.metric);
-                    const option = metricOptions.find(o => o.value === chart.metric);
-                    const isBar = option?.type === 'bar';
-
-                    const chartConfig = {
-                        labels: barLabels,
-                        datasets: [{
-                            label: option?.label || chart.metric,
-                            data: data,
-                            backgroundColor: isBar ? `${chart.color}80` : 'transparent',
-                            borderColor: chart.color,
-                            borderWidth: isBar ? 1 : 2,
-                            tension: 0.4,
-                            fill: !isBar,
-                            pointRadius: isBar ? 0 : 3,
-                            barPercentage: 0.7,
-                            categoryPercentage: 0.8,
-                        }],
-                    };
-
-                    const opts = {
-                        ...chartOptions,
-                        scales: { ...chartOptions.scales, y: { ...chartOptions.scales.y, title: { display: true, text: unit } } }
-                    };
-
-                    return (
-                        <div key={chart.id} className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+                {chartData.length > 0 && (
+                    <>
+                        <div className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
                             <div className="card-body p-4">
-                                <div className="d-flex justify-content-between align-items-center mb-4">
-                                    <div className="d-flex align-items-center gap-3">
-                                        <h5 style={{ fontWeight: 600, margin: 0 }}>График {index + 1}</h5>
-                                        <select
-                                            className="form-select form-select-sm w-auto"
-                                            value={chart.metric}
-                                            onChange={(e) => updateExtraChartMetric(chart.id, e.target.value)}
-                                            style={{ width: "180px" }}
-                                        >
-                                            {metricOptions.map(opt => (
-                                                <option key={opt.value} value={opt.value}>{opt.label}</option>
-                                            ))}
+                                <div className="d-flex justify-content-between align-items-center flex-wrap mb-4">
+                                    <h5 style={{ fontWeight: 600, margin: 0 }}>Анализ тренировок</h5>
+                                    <div className="d-flex gap-3 flex-wrap">
+                                        <select className="form-select form-select-sm w-auto" value={barMetric} onChange={(e) => setBarMetric(e.target.value as any)}>
+                                            <option value="distance">Дистанция (км)</option>
+                                            <option value="duration">Продолжительность (мин)</option>
+                                            <option value="ascent">Подъём (м)</option>
+                                            <option value="descent">Спуск (м)</option>
+                                        </select>
+                                        <select className="form-select form-select-sm w-auto" value={leftLineMetric} onChange={(e) => setLeftLineMetric(e.target.value as any)}>
+                                            <option value="none">— левая ось —</option>
+                                            <option value="pace">Темп (мин/км)</option>
+                                            <option value="maxSpeed">Макс. скорость (м/с)</option>
+                                            <option value="avgHr">Пульс (уд/мин)</option>
+                                        </select>
+                                        <select className="form-select form-select-sm w-auto" value={rightLineMetric} onChange={(e) => setRightLineMetric(e.target.value as any)}>
+                                            <option value="none">— правая ось —</option>
+                                            <option value="pace">Темп (мин/км)</option>
+                                            <option value="maxSpeed">Макс. скорость (м/с)</option>
+                                            <option value="avgHr">Пульс (уд/мин)</option>
                                         </select>
                                     </div>
-                                    {extraCharts.length > 0 && (
-                                        <button
-                                            className="btn btn-sm btn-outline-danger"
-                                            onClick={() => removeExtraChart(chart.id)}
-                                            style={{ borderRadius: "8px" }}
-                                        >
-                                            ✕ Удалить
-                                        </button>
-                                    )}
                                 </div>
-                                <div style={{ height: "350px" }}>
-                                    {isBar ? (
-                                        <Bar data={chartConfig} options={opts} />
-                                    ) : (
-                                        <Line data={chartConfig} options={opts} />
-                                    )}
+                                <div style={{ height: "400px" }}>
+                                    <Line data={combinedChartConfig as any} options={combinedChartOptions as any} />
                                 </div>
                             </div>
                         </div>
-                    );
-                })}
 
-                <div className="text-center mb-5">
-                    <button
-                        className="btn btn-outline-danger"
-                        style={{ borderRadius: "12px", padding: "10px 24px", borderColor: '#D1001C', color: '#D1001C' }}
-                        onClick={addExtraChart}
-                    >
-                        + Добавить график
-                    </button>
-                </div>
+                        {extraCharts.map((chart, index) => {
+                            const data = getExtraChartData(chart.metric);
+                            const unit = getExtraChartUnit(chart.metric);
+                            const option = metricOptions.find(o => o.value === chart.metric);
+                            const isBar = option?.type === 'bar';
+
+                            const chartConfig = {
+                                labels: barLabels,
+                                datasets: [{
+                                    label: option?.label || chart.metric,
+                                    data: data,
+                                    backgroundColor: isBar ? `${chart.color}80` : 'transparent',
+                                    borderColor: chart.color,
+                                    borderWidth: isBar ? 1 : 2,
+                                    tension: 0.4,
+                                    fill: !isBar,
+                                    pointRadius: isBar ? 0 : 3,
+                                    barPercentage: 0.7,
+                                    categoryPercentage: 0.8,
+                                }],
+                            };
+
+                            const opts = {
+                                ...chartOptions,
+                                plugins: {
+                                    tooltip: {
+                                        callbacks: {
+                                            label: (context: any) => {
+                                                const label = context.dataset.label || '';
+                                                let value = context.raw;
+                                                if ((label.includes('Темп') || unit === 'мин/км') && value > 0) {
+                                                    const minutes = Math.floor(value);
+                                                    const seconds = Math.round((value - minutes) * 60);
+                                                    return `${label}: ${minutes}:${seconds.toString().padStart(2, '0')} /км`;
+                                                }
+                                                return `${label}: ${value} ${unit}`;
+                                            }
+                                        }
+                                    }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: { display: true, text: unit },
+                                        ticks: {
+                                            callback: (value: any) => {
+                                                if (unit === 'мин/км') {
+                                                    const minutes = Math.floor(value);
+                                                    const seconds = Math.round((value - minutes) * 60);
+                                                    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                                }
+                                                return value;
+                                            }
+                                        }
+                                    }
+                                }
+                            };
+
+                            return (
+                                <div key={chart.id} className="card border-0 shadow-sm mb-4" style={{ borderRadius: "12px" }}>
+                                    <div className="card-body p-4">
+                                        <div className="d-flex justify-content-between align-items-center mb-4">
+                                            <div className="d-flex align-items-center gap-3">
+                                                <h5 style={{ fontWeight: 600, margin: 0 }}>График {index + 1}</h5>
+                                                <select
+                                                    className="form-select form-select-sm w-auto"
+                                                    value={chart.metric}
+                                                    onChange={(e) => updateExtraChartMetric(chart.id, e.target.value)}
+                                                    style={{ width: "180px" }}
+                                                >
+                                                    {metricOptions.map(opt => (
+                                                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            {extraCharts.length > 0 && (
+                                                <button
+                                                    className="btn btn-sm btn-outline-danger"
+                                                    onClick={() => removeExtraChart(chart.id)}
+                                                    style={{ borderRadius: "8px" }}
+                                                >
+                                                    ✕ Удалить
+                                                </button>
+                                            )}
+                                        </div>
+                                        <div style={{ height: "350px" }}>
+                                            {isBar ? (
+                                                <Bar data={chartConfig} options={opts} />
+                                            ) : (
+                                                <Line data={chartConfig} options={opts} />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        <div className="text-center mb-5">
+                            <button
+                                className="btn btn-outline-danger"
+                                style={{ borderRadius: "12px", padding: "10px 24px", borderColor: '#D1001C', color: '#D1001C' }}
+                                onClick={addExtraChart}
+                            >
+                                + Добавить график
+                            </button>
+                        </div>
+                    </>
+                )}
 
                 <div className="row g-4 mb-4">
                     <div className="col-12">
@@ -628,21 +700,33 @@ const ReportsPage: React.FC = () => {
                                 <h5 style={{ fontWeight: 600, marginBottom: "20px" }}>Распределение по видам спорта</h5>
                                 <div className="row">
                                     <div className="col-md-4">
-                                        <h6 className="text-center mb-3">По продолжительности</h6>
+                                        <h6 className="text-center mb-3">По количеству сессий</h6>
                                         <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(sportDistributions, 'duration')} />
+                                            {sportSessionPie.length > 0 ? (
+                                                <Pie {...createPieConfig(sportSessionPie)} />
+                                            ) : (
+                                                <div className="text-center text-muted py-5">Нет данных</div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="col-md-4">
                                         <h6 className="text-center mb-3">По дистанции</h6>
                                         <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(sportDistributions, 'distance')} />
+                                            {sportDistancePie.length > 0 ? (
+                                                <Pie {...createPieConfig(sportDistancePie)} />
+                                            ) : (
+                                                <div className="text-center text-muted py-5">Нет данных</div>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="col-md-4">
-                                        <h6 className="text-center mb-3">По количеству сессий</h6>
+                                        <h6 className="text-center mb-3">По продолжительности</h6>
                                         <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(sportDistributions, 'sessions')} />
+                                            {sportDurationPie.length > 0 ? (
+                                                <Pie {...createPieConfig(sportDurationPie)} />
+                                            ) : (
+                                                <div className="text-center text-muted py-5">Нет данных</div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -657,22 +741,14 @@ const ReportsPage: React.FC = () => {
                             <div className="card-body p-4">
                                 <h5 style={{ fontWeight: 600, marginBottom: "20px" }}>Распределение по типам тренировок</h5>
                                 <div className="row">
-                                    <div className="col-md-4">
-                                        <h6 className="text-center mb-3">По продолжительности</h6>
+                                    <div className="col-md-6 mx-auto">
+                                        <h6 className="text-center mb-3">По видам тренировок</h6>
                                         <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(trainingTypeDistributions, 'duration')} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <h6 className="text-center mb-3">По дистанции</h6>
-                                        <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(trainingTypeDistributions, 'distance')} />
-                                        </div>
-                                    </div>
-                                    <div className="col-md-4">
-                                        <h6 className="text-center mb-3">По количеству сессий</h6>
-                                        <div style={{ height: "300px" }}>
-                                            <Pie {...createPieConfig(trainingTypeDistributions, 'sessions')} />
+                                            {typePie.length > 0 ? (
+                                                <Pie {...createPieConfig(typePie)} />
+                                            ) : (
+                                                <div className="text-center text-muted py-5">Нет данных</div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>

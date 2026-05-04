@@ -31,7 +31,7 @@ const SportsmanPage: React.FC = () => {
 
     return (
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#f5f7fa" }}>
-            <Header active="coach" />
+            <Header/>
             <div className="container py-4">
                 <div className="card border-0 shadow-sm" style={{ borderRadius: "16px", overflow: "hidden", height: "calc(100vh - 140px)" }}>
                     <div className="row g-0" style={{ height: "100%" }}>
