@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import Header from '../components/Header';
 import { useNavigate } from 'react-router-dom';
 import authService from '../api/authService';
-import api from '../api/axios';
 
 interface UserData {
     user_surname: string;
@@ -25,7 +24,7 @@ const UserProfilePage: React.FC = () => {
     const navigate = useNavigate();
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const [error] = useState<string | null>(null);
 
     useEffect(() => {
         const currentUser = authService.getCurrentUser();

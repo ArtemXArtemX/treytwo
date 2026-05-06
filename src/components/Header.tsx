@@ -12,7 +12,7 @@ type Props = {
 
 const Header: React.FC<Props> = ({ active }) => {
     const location = useLocation();
-    const navigate = useNavigate();
+    useNavigate();
     const { isCoach } = useRole();
 
     const getActiveTab = () => {
@@ -39,11 +39,8 @@ const Header: React.FC<Props> = ({ active }) => {
         } catch (error) {
             console.error("Ошибка при выходе:", error);
         } finally {
-            localStorage.removeItem("token");
-            localStorage.removeItem("refreshToken");
-            localStorage.removeItem("user");
-            localStorage.removeItem("userId");
-            window.location.href = "/login";
+            localStorage.clear();
+            window.location.replace("/login");
         }
     };
 

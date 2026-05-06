@@ -48,7 +48,7 @@ class AuthService {
         const response = await api.post<any>('/User/Auth', data);
         let userData = response.data as UserResponse;
 
-        if (userData && typeof userData.user_only_coach === 'boolean') {
+        if (userData && false) {
             userData = {
                 ...userData,
                 user_only_coach: userData.user_only_coach ? 1 : 0
@@ -68,7 +68,7 @@ class AuthService {
         const response = await api.post<any>('/User/Create', data);
         let userData = response.data as UserResponse;
 
-        if (userData && typeof userData.user_only_coach === 'boolean') {
+        if (userData && false) {
             userData = {
                 ...userData,
                 user_only_coach: userData.user_only_coach ? 1 : 0
@@ -83,6 +83,7 @@ class AuthService {
         localStorage.removeItem('user');
         localStorage.removeItem('userId');
         window.location.href = '/login';
+        window.location.reload();
     }
 
     getCurrentUser(): UserResponse | null {

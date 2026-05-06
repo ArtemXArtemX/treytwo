@@ -14,7 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import Header from '../../components/Header';
-import reportService, { ReportResponse, ReportBin, PieItem } from '../../api/reportService';
+import reportService, { ReportResponse, PieItem } from '../../api/reportService';
 
 ChartJS.register(
     CategoryScale,
@@ -81,7 +81,7 @@ const metricOptions = [
     { value: 'pace', label: 'Темп (мин/км)', type: 'line', unit: 'мин/км' },
     { value: 'maxSpeed', label: 'Макс. скорость (м/с)', type: 'line', unit: 'м/с' },
     { value: 'avgHr', label: 'Пульс (уд/мин)', type: 'line', unit: 'уд/мин' },
-    { value: 'sessions', label: 'Количество сессий', type: 'bar', unit: 'шт' },
+    { value: 'sessions', label: 'Количество сессий', type: 'bar'},
 ];
 
 const ReportsPage: React.FC = () => {
@@ -107,7 +107,7 @@ const ReportsPage: React.FC = () => {
     const [sportDistancePie, setSportDistancePie] = useState<PieItem[]>([]);
     const [sportDurationPie, setSportDurationPie] = useState<PieItem[]>([]);
     const [typePie, setTypePie] = useState<PieItem[]>([]);
-    const avgPaceSecPerKm = metrics.avgPace > 0 ? 1000 / metrics.avgPace : 0;
+    const avgPaceSecPerKm = metrics.avgPace && metrics.avgPace > 0 ? 1000 / metrics.avgPace : 0;
 
     const pieColors = ['#D1001C', '#0d6efd', '#198754', '#ffc107', '#6f42c1', '#fd7e14', '#20c997', '#dc3545'];
 
@@ -115,7 +115,7 @@ const ReportsPage: React.FC = () => {
     const [leftLineMetric, setLeftLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('pace');
     const [rightLineMetric, setRightLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('none');
     const [extraCharts, setExtraCharts] = useState<ExtraChart[]>([
-        { id: 'extra1', metric: 'avgHr', color: '#D1001C' },
+        { id: 'extra1', metric: 'avgHr', color: 'rgba(209, 0, 28, 0.6)' },
     ]);
 
     const getBinFromPeriod = (period: Period, startDate?: Date, endDate?: Date): BinType => {
@@ -133,11 +133,10 @@ const ReportsPage: React.FC = () => {
         return 'day';
     };
 
-    // Получение дат для запроса
     const getDateRange = (): { start: string; end: string } => {
         const now = new Date();
         let start: Date;
-        let end: Date = new Date();
+        let end: Date;
 
         if (period === 'year') {
             start = new Date(now.getFullYear(), 0, 1);
@@ -168,7 +167,6 @@ const ReportsPage: React.FC = () => {
         };
     };
 
-    // Загрузка данных
     const fetchReport = async () => {
         setLoading(true);
         try {
@@ -402,8 +400,25 @@ const ReportsPage: React.FC = () => {
         ],
     };
 
-    const createPieConfig = (data: PieItem[]) => {
+    const createPieConfig = (data: PieItem[], valueType: 'distance' | 'duration' | 'sessions') => {
         const total = data.reduce((sum, item) => sum + item.value, 0);
+
+        const formatValue = (value: number, type: string) => {
+            if (type === 'distance') {
+                const km = value / 1000;
+                return `${km.toFixed(2)} км`;
+            }
+            if (type === 'duration') {
+                const hours = Math.floor(value / 3600);
+                const minutes = Math.floor((value % 3600) / 60);
+                if (hours > 0) {
+                    return `${hours} ч ${minutes} мин`;
+                }
+                return `${minutes} мин`;
+            }
+            return `${value}`;
+        };
+
         return {
             data: {
                 labels: data.map(item => `${item.caption} (${((item.value / total) * 100).toFixed(1)}%)`),
@@ -422,7 +437,8 @@ const ReportsPage: React.FC = () => {
                             label: (context: any) => {
                                 const value = context.raw;
                                 const percentage = ((value / total) * 100).toFixed(1);
-                                return `${context.label.split(' (')[0]}: ${value} (${percentage}%)`;
+                                const formattedValue = formatValue(value, valueType);
+                                return `${context.label.split(' (')[0]}: ${formattedValue} (${percentage}%)`;
                             }
                         }
                     },
@@ -436,13 +452,13 @@ const ReportsPage: React.FC = () => {
     };
 
     const metricsCards = [
-        { label: 'Всего тренировок', value: metrics.totalTrainings, unit: '' },
-        { label: 'Общая дистанция', value: (metrics.totalDistance / 1000).toFixed(2), unit: 'км' },
-        { label: 'Общее время', value: formatDuration(metrics.totalDuration), unit: '' },
-        { label: 'Средний темп', value: formatPace(avgPaceSecPerKm), unit: '/км' },
-        { label: 'Калории', value: metrics.totalCalories, unit: 'ккал' },
-        { label: 'Набор высоты', value: metrics.totalAscent.toFixed(1), unit: 'м' },
-        { label: 'Спуск', value: metrics.totalDescent.toFixed(1), unit: 'м' },
+        { label: 'Всего тренировок', value: metrics.totalTrainings ?? 0, unit: '' },
+        { label: 'Общая дистанция', value: metrics.totalDistance ? (metrics.totalDistance / 1000).toFixed(2) : '0', unit: 'км' },
+        { label: 'Общее время', value: metrics.totalDuration ? formatDuration(metrics.totalDuration) : '0', unit: '' },
+        { label: 'Средний темп', value: metrics.avgPace ? formatPace(avgPaceSecPerKm) : '0:00', unit: '/км' },
+        { label: 'Калории', value: metrics.totalCalories ?? 0, unit: 'ккал' },
+        { label: 'Набор высоты', value: metrics.totalAscent ? metrics.totalAscent.toFixed(1) : '0', unit: 'м' },
+        { label: 'Спуск', value: metrics.totalDescent ? metrics.totalDescent.toFixed(1) : '0', unit: 'м' },
     ];
 
     const chartOptions = {
@@ -703,7 +719,7 @@ const ReportsPage: React.FC = () => {
                                         <h6 className="text-center mb-3">По количеству сессий</h6>
                                         <div style={{ height: "300px" }}>
                                             {sportSessionPie.length > 0 ? (
-                                                <Pie {...createPieConfig(sportSessionPie)} />
+                                                <Pie {...createPieConfig(sportSessionPie, 'sessions')} />
                                             ) : (
                                                 <div className="text-center text-muted py-5">Нет данных</div>
                                             )}
@@ -713,7 +729,7 @@ const ReportsPage: React.FC = () => {
                                         <h6 className="text-center mb-3">По дистанции</h6>
                                         <div style={{ height: "300px" }}>
                                             {sportDistancePie.length > 0 ? (
-                                                <Pie {...createPieConfig(sportDistancePie)} />
+                                                <Pie {...createPieConfig(sportDistancePie, 'distance')} />
                                             ) : (
                                                 <div className="text-center text-muted py-5">Нет данных</div>
                                             )}
@@ -723,7 +739,7 @@ const ReportsPage: React.FC = () => {
                                         <h6 className="text-center mb-3">По продолжительности</h6>
                                         <div style={{ height: "300px" }}>
                                             {sportDurationPie.length > 0 ? (
-                                                <Pie {...createPieConfig(sportDurationPie)} />
+                                                <Pie {...createPieConfig(sportDurationPie, 'duration')} />
                                             ) : (
                                                 <div className="text-center text-muted py-5">Нет данных</div>
                                             )}
@@ -742,10 +758,10 @@ const ReportsPage: React.FC = () => {
                                 <h5 style={{ fontWeight: 600, marginBottom: "20px" }}>Распределение по типам тренировок</h5>
                                 <div className="row">
                                     <div className="col-md-6 mx-auto">
-                                        <h6 className="text-center mb-3">По видам тренировок</h6>
+                                        <h6 className="text-center mb-3">По количеству сессий</h6>
                                         <div style={{ height: "300px" }}>
                                             {typePie.length > 0 ? (
-                                                <Pie {...createPieConfig(typePie)} />
+                                                <Pie {...createPieConfig(typePie, 'sessions')} />
                                             ) : (
                                                 <div className="text-center text-muted py-5">Нет данных</div>
                                             )}

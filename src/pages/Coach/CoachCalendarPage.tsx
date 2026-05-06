@@ -7,7 +7,6 @@ import "../../styles/fullcalendar.css";
 import Header from "../../components/Header";
 import TrainingDetailsModal from "../../components/modals/TrainingDetailsModal";
 import PlanTrainingModal from "../../components/modals/PlanSessionModal";
-import authService from "../../api/authService";
 import trainingService from "../../api/trainingService";
 
 export type TrainingStatus = "planned" | "done";
@@ -80,11 +79,11 @@ const CoachCalendarPage: React.FC = () => {
     const [trainings, setTrainings] = useState<TrainingEvent[]>([]);
     const [selectedTraining, setSelectedTraining] = useState<TrainingEvent | null>(null);
     const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [, setIsLoading] = useState(false);
     const [planOpen, setPlanOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const [athletes, setAthletes] = useState<Athlete[]>([
+    const [athletes] = useState<Athlete[]>([
         { id: 1, surname: "Татарников", name: "Артём", fathername: "Павлович", nickname: "tematrkv" },
         { id: 2, surname: "Иванов", name: "Иван", fathername: "Иванович", nickname: "ivan_runner" },
         { id: 3, surname: "Петрова", name: "Анна", fathername: "Сергеевна", nickname: "anna_run" },
