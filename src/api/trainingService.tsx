@@ -201,6 +201,57 @@ class TrainingService {
         const response = await api.post('/Training/CreatePlannedTrainingBySportsman', data);
         return response.data;
     }
+
+    async completeTrainingWithFile(
+        id: number,
+        file: File,
+        stress_score?: number,
+        feeling_score?: number,
+        comment_sportsman?: string
+    ): Promise<TrainingResponse> {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('id', String(id));
+        if (stress_score !== undefined) formData.append('stress_score', String(stress_score));
+        if (feeling_score !== undefined) formData.append('feeling_score', String(feeling_score));
+        if (comment_sportsman !== undefined) formData.append('comment_sportsman', comment_sportsman);
+
+        const response = await api.put<TrainingResponse>(`/Training/UpdatePlanToCompleteFile`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data;
+    }
+
+    async completeTrainingWithoutFile(
+        id: number,
+        data: {
+            stress_score?: number;
+            feeling_score?: number;
+            comment_sportsman?: string;
+            time_start: string;
+            local_timestamp: string;
+            duration: number;
+            distance: number;
+            avg_heart_rate?: number;
+            avg_speed?: number;
+            calories?: number;
+        }
+    ): Promise<TrainingResponse> {
+        const response = await api.put<TrainingResponse>(`/Training/UpdatePlanToCompleteWithoutFile`, {
+            id: id,
+            time_start: data.time_start,
+            local_timestamp: data.local_timestamp,
+            duration: data.duration,
+            distance: data.distance,
+            avg_heart_rate: data.avg_heart_rate || 0,
+            avg_speed: data.avg_speed || 0,
+            calories: data.calories || 0,
+            stress_score: data.stress_score,
+            feeling_score: data.feeling_score,
+            comment_sportsman: data.comment_sportsman
+        });
+        return response.data;
+    }
 }
 
 export default new TrainingService();

@@ -12,6 +12,9 @@ import PlanTrainingModal from "../../components/modals/PlanSessionModal";
 import authService from "../../api/authService";
 import trainingService from "../../api/trainingService";
 
+import MarkAsCompleteModal from '../../components/modals/MarkAsCompleteModal';
+import PlannedTrainingsList from '../../components/PlannedTrainingsList';
+
 export type TrainingStatus = "planned" | "done";
 
 export type GpsPoint = { lat: number; lon: number };
@@ -78,6 +81,50 @@ const AthleteCalendarPage: React.FC = () => {
     const [selectedTraining, setSelectedTraining] = useState<TrainingEvent | null>(null);
     const [currentDateRange, setCurrentDateRange] = useState<{ start: Date; end: Date } | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [selectedPlannedTraining, setSelectedPlannedTraining] = useState<TrainingEvent | null>(null);
+    const [showPlannedList, setShowPlannedList] = useState(false);
+    const [completeMode, setCompleteMode] = useState<'withFile' | 'withoutFile' | null>(null);
+
+    const handleCompletePlannedTraining = async () => {
+        if (!selectedPlannedTraining) return;
+
+        try {
+            const updatedTrainingData = await trainingService.getTrainingMid(Number(selectedPlannedTraining.id));
+
+            const updatedTraining: TrainingEvent = {
+                id: String(updatedTrainingData.id),
+                date: updatedTrainingData.time_start.split('T')[0],
+                status: "done",
+                name: updatedTrainingData.name_training || selectedPlannedTraining.name,
+                sport: updatedTrainingData.sport_id,
+                typeTraining: updatedTrainingData.type_training_id,
+                note: updatedTrainingData.comment_sportsman || undefined,
+                startTime: updatedTrainingData.time_start.split('T')[1]?.substring(0, 5),
+                distanceKm: updatedTrainingData.distance ? updatedTrainingData.distance / 1000 : selectedPlannedTraining.distanceKm,
+                durationSec: updatedTrainingData.duration || selectedPlannedTraining.durationSec,
+                avgHr: updatedTrainingData.avg_heart_rate || undefined,
+                avgPaceSecPerKm: updatedTrainingData.avg_speed ? Math.round(1000 / updatedTrainingData.avg_speed) : undefined,
+                avg_speed: updatedTrainingData.avg_speed,
+                max_speed: updatedTrainingData.max_speed,
+                max_heart_rate: updatedTrainingData.max_heart_rate,
+                min_heart_rate: updatedTrainingData.min_heart_rate,
+                max_altitude: updatedTrainingData.max_altitude,
+                avg_power: updatedTrainingData.avg_power,
+                max_power: updatedTrainingData.max_power,
+                elevationGainM: updatedTrainingData.total_ascent || undefined,
+                elevationLossM: updatedTrainingData.total_descent || undefined,
+                calories: updatedTrainingData.calories || undefined,
+            };
+
+            setTrainings(prev => prev.map(t =>
+                t.id === selectedPlannedTraining.id ? updatedTraining : t
+            ));
+
+            setSelectedPlannedTraining(null);
+        } catch (error) {
+            console.error("Ошибка обновления тренировки:", error);
+        }
+    };
 
     const [reportData, setReportData] = useState({
         total_trainings: 0,
@@ -375,6 +422,33 @@ const AthleteCalendarPage: React.FC = () => {
                                     <li>
                                         <button
                                             className="dropdown-item"
+                                            onClick={() => {
+                                                setShowPlannedList(true);
+                                            }}
+                                            style={{
+                                                padding: "10px 20px",
+                                                fontSize: "14px",
+                                                fontWeight: 500,
+                                                transition: "all 0.2s",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: "10px"
+                                            }}
+                                            onMouseEnter={(e) => {
+                                                e.currentTarget.style.backgroundColor = "#f8f9fa";
+                                                e.currentTarget.style.color = "#D1001C";
+                                            }}
+                                            onMouseLeave={(e) => {
+                                                e.currentTarget.style.backgroundColor = "transparent";
+                                                e.currentTarget.style.color = "#333";
+                                            }}
+                                        >
+                                            Отметить выполнение запланированного занятия
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <button
+                                            className="dropdown-item"
                                             onClick={() => setCreateOpen(true)}
                                             style={{
                                                 padding: "10px 20px",
@@ -394,9 +468,6 @@ const AthleteCalendarPage: React.FC = () => {
                                                 e.currentTarget.style.color = "#333";
                                             }}
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                                            </svg>
                                             Новое занятие
                                         </button>
                                     </li>
@@ -422,9 +493,6 @@ const AthleteCalendarPage: React.FC = () => {
                                                 e.currentTarget.style.color = "#333";
                                             }}
                                         >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                                <path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                                            </svg>
                                             Запланировать занятие
                                         </button>
                                     </li>
@@ -638,6 +706,29 @@ const AthleteCalendarPage: React.FC = () => {
             {uploadOpen && (<UploadSessionModal onClose={() => setUploadOpen(false)} onParsed={onUploadParsed} />)}
             {planOpen && (<PlanTrainingModal onClose={() => setPlanOpen(false)} onSubmit={onPlanSubmit} />)}
             {selectedTraining && (<TrainingDetailsModal training={selectedTraining} onClose={() => setSelectedTraining(null)} formatHms={formatHms} formatPace={formatPace} />)}
+            {/* Список запланированных тренировок */}
+            {showPlannedList && (
+                <PlannedTrainingsList
+                    trainings={trainings.filter(t => t.status === "planned")}
+                    onSelect={(training) => {
+                        setSelectedPlannedTraining(training);
+                        setShowPlannedList(false);
+                    }}
+                    onClose={() => setShowPlannedList(false)}
+                />
+            )}
+
+            {selectedPlannedTraining && !completeMode && (
+                <MarkAsCompleteModal
+                    training={selectedPlannedTraining}
+                    onClose={() => setSelectedPlannedTraining(null)}
+                    onComplete={async () => {
+                        await handleCompletePlannedTraining();
+                        setCompleteMode(null);
+                        setSelectedPlannedTraining(null);
+                    }}
+                />
+            )}
         </div>
     );
 };

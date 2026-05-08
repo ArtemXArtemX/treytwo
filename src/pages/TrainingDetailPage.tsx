@@ -4,6 +4,8 @@ import Header from '../components/Header';
 import trainingService from '../api/trainingService';
 import { TrainingResponse } from '../api/trainingService';
 
+import MarkAsCompleteModal from '../components/modals/MarkAsCompleteModal';
+
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -50,6 +52,15 @@ const TrainingDetailPage: React.FC = () => {
 
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState<any>({});
+
+    const [showMarkCompleteModal, setShowMarkCompleteModal] = useState(false);
+
+    const handleCompleteRefresh = async () => {
+        if (!training) return;
+        const updatedTraining = await trainingService.getTrainingById(training.id);
+        setTraining(updatedTraining);
+        setEditForm(updatedTraining);
+    };
 
     const feelingLabels = [
         "😫 Очень слабым",
@@ -555,6 +566,26 @@ const TrainingDetailPage: React.FC = () => {
                                     ⋯
                                 </button>
 
+                                {String(training.status_training) !== "Завершено" && (
+                                    <button
+                                        onClick={() => setShowMarkCompleteModal(true)}
+                                        style={{
+                                            background: "none",
+                                            border: "none",
+                                            fontSize: 24,
+                                            cursor: "pointer",
+                                            color: "#D1001C",
+                                            lineHeight: 1,
+                                            padding: "4px 12px",
+                                            borderRadius: 4
+                                        }}
+                                        aria-label="Отметить выполнение"
+                                        title="Отметить выполнение"
+                                    >
+                                        ✓
+                                    </button>
+                                )}
+
                                 {showMenu && !showDeleteConfirm && (
                                     <div style={{
                                         position: "absolute",
@@ -568,6 +599,23 @@ const TrainingDetailPage: React.FC = () => {
                                         zIndex: 1001,
                                         overflow: "hidden"
                                     }}>
+                                        <button
+                                            onClick={() => setShowMarkCompleteModal(true)}
+                                            style={{
+                                                background: "none",
+                                                border: "none",
+                                                fontSize: 24,
+                                                cursor: "pointer",
+                                                color: "#D1001C",
+                                                lineHeight: 1,
+                                                padding: "4px 12px",
+                                                borderRadius: 4
+                                            }}
+                                            aria-label="Отметить выполнение"
+                                        >
+                                            Отметить выполнение
+                                        </button>
+
                                         <button
                                             onClick={handleEditClick}
                                             style={{
@@ -1289,6 +1337,31 @@ const TrainingDetailPage: React.FC = () => {
                     </div>
                 </div>
             </div>
+            {showMarkCompleteModal && training && (
+                <MarkAsCompleteModal
+                    training={{
+                        id: String(training.id),
+                        date: training.time_start?.split('T')[0] || '',
+                        status: String(training.status_training) === "Завершено" ? "done" : "planned",
+                        name: training.name_training || undefined,
+                        sport: training.sport_id,
+                        typeTraining: training.type_training_id,
+                        note: training.comment_sportsman || undefined,
+                        startTime: training.time_start?.split('T')[1]?.substring(0, 5),
+                        distanceKm: training.distance ? training.distance / 1000 : undefined,
+                        durationSec: training.duration || undefined,
+                        avgHr: training.avg_heart_rate || undefined,
+                        avgPaceSecPerKm: training.avg_speed ? Math.round(1000 / training.avg_speed) : undefined,
+                        elevationGainM: training.total_ascent || undefined,
+                        elevationLossM: training.total_descent || undefined,
+                        calories: training.calories || undefined,
+                        stress_score: training.stress_score,
+                        feeling_score: training.feeling_score,
+                    }}
+                    onClose={() => setShowMarkCompleteModal(false)}
+                    onComplete={handleCompleteRefresh}
+                />
+            )}
         </div>
     );
 };

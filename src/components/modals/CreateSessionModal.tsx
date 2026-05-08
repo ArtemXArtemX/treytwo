@@ -125,7 +125,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
                 setForm((p) => ({ ...p, [name]: numValue }));
             }
         } else if (name === "feeling_score") {
-            // Для feeling_score просто сохраняем значение (уже число)
             setForm((p) => ({ ...p, [name]: value }));
         } else if (name === "distanceKm") {
             if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -202,7 +201,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         const distanceKm = parseFloat(form.distanceKm);
         const avgSpeed = durationSec > 0 && distanceKm > 0 ? (distanceKm * 1000) / durationSec : 0;
 
-        // Формируем время в ISO формате
         const timeStartStr = `${form.date}T${form.startTime}:00`;
 
         const trainingData = {
@@ -230,7 +228,6 @@ const CreateSessionModal: React.FC<Props> = ({ onClose, onSubmit }) => {
         try {
             const createdTraining = await trainingService.createTraining(trainingData);
 
-            // Создаем payload для локального отображения
             const payload: CreateSessionPayload = {
                 name: form.name,
                 sport: selectedSport?.sport_name || form.sport,

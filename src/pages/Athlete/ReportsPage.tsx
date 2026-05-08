@@ -59,29 +59,31 @@ interface ExtraChart {
 
 type Period = 'year' | 'month' | 'week' | 'custom';
 type BinType = 'day' | 'week' | 'month';
-
-const formatDuration = (seconds: number): string => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h} ч ${m} мин`;
-    return `${m} мин`;
+const formatDurationHM = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours} ч ${minutes} мин`;
+    return `${minutes} мин`;
 };
-
-const formatPace = (paceSecPerKm: number): string => {
-    const minutes = Math.floor(paceSecPerKm / 60);
-    const seconds = Math.floor(paceSecPerKm % 60);
+const formatTimeHMS = (value: number): string => {
+    const hours = Math.floor(value / 3600);
+    const minutes = Math.floor((value % 3600) / 60);
+    const seconds = Math.floor(value % 60);
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 const metricOptions = [
     { value: 'distance', label: 'Дистанция (км)', type: 'bar', unit: 'км' },
-    { value: 'duration', label: 'Продолжительность (мин)', type: 'bar', unit: 'мин' },
+    { value: 'duration', label: 'Продолжительность', type: 'bar', unit: 'ч:мм:сс' },
     { value: 'ascent', label: 'Подъём (м)', type: 'bar', unit: 'м' },
     { value: 'descent', label: 'Спуск (м)', type: 'bar', unit: 'м' },
     { value: 'pace', label: 'Темп (мин/км)', type: 'line', unit: 'мин/км' },
     { value: 'maxSpeed', label: 'Макс. скорость (м/с)', type: 'line', unit: 'м/с' },
     { value: 'avgHr', label: 'Пульс (уд/мин)', type: 'line', unit: 'уд/мин' },
-    { value: 'sessions', label: 'Количество сессий', type: 'bar'},
+    { value: 'sessions', label: 'Количество сессий', type: 'bar', unit: '' },
 ];
 
 const ReportsPage: React.FC = () => {
@@ -107,15 +109,13 @@ const ReportsPage: React.FC = () => {
     const [sportDistancePie, setSportDistancePie] = useState<PieItem[]>([]);
     const [sportDurationPie, setSportDurationPie] = useState<PieItem[]>([]);
     const [typePie, setTypePie] = useState<PieItem[]>([]);
-    const avgPaceSecPerKm = metrics.avgPace && metrics.avgPace > 0 ? 1000 / metrics.avgPace : 0;
-
-    const pieColors = ['#D1001C', '#0d6efd', '#198754', '#ffc107', '#6f42c1', '#fd7e14', '#20c997', '#dc3545'];
+    const pieColors = ['#D1001C', '#D1374A', '#D15E6E', '#D18592', '#D1A0A9', '#D1BBC0', '#8B0000', '#A52A2A', '#B22222', '#CD5C5C'];
 
     const [barMetric, setBarMetric] = useState<'distance' | 'duration' | 'ascent' | 'descent'>('distance');
     const [leftLineMetric, setLeftLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('pace');
     const [rightLineMetric, setRightLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('none');
     const [extraCharts, setExtraCharts] = useState<ExtraChart[]>([
-        { id: 'extra1', metric: 'avgHr', color: 'rgba(209, 0, 28, 0.6)' },
+        { id: 'extra1', metric: 'avgHr', color: '#D1001C' },
     ]);
 
     const getBinFromPeriod = (period: Period, startDate?: Date, endDate?: Date): BinType => {
@@ -216,7 +216,7 @@ const ReportsPage: React.FC = () => {
 
     const addExtraChart = () => {
         const newId = `extra${extraCharts.length + 1}`;
-        setExtraCharts([...extraCharts, { id: newId, metric: 'avgHr', color: '#198754' }]);
+        setExtraCharts([...extraCharts, { id: newId, metric: 'avgHr', color: '#D1001C' }]);
     };
 
     const removeExtraChart = (id: string) => {
@@ -234,7 +234,7 @@ const ReportsPage: React.FC = () => {
     const barDataValues = chartData.map(d => {
         switch (barMetric) {
             case 'distance': return parseFloat(d.distance.toFixed(2));
-            case 'duration': return d.duration / 60;
+            case 'duration': return d.duration;
             case 'ascent': return d.ascent;
             case 'descent': return d.descent;
             default: return d.distance;
@@ -266,15 +266,17 @@ const ReportsPage: React.FC = () => {
         return '';
     };
 
-    const barUnit = barMetric === 'distance' ? 'км' : barMetric === 'duration' ? 'мин' : 'м';
-
+    const barUnit = barMetric === 'distance' ? 'км' : barMetric === 'duration' ? 'ч:мм:сс' : 'м';
     const getExtraChartData = (metric: string) => {
         switch (metric) {
             case 'distance': return chartData.map(d => parseFloat(d.distance.toFixed(2)));
-            case 'duration': return chartData.map(d => d.duration / 60);
+            case 'duration': return chartData.map(d => d.duration);
             case 'ascent': return chartData.map(d => d.ascent);
             case 'descent': return chartData.map(d => d.descent);
-            case 'pace': return chartData.map(d => d.avgSpeed > 0 ? d.avgSpeed / 60 : 0);
+            case 'pace': return chartData.map(d => {
+                const paceMinPerKm = d.avgSpeed > 0 ? 1000 / (d.avgSpeed * 60) : 0;
+                return paceMinPerKm;
+            });
             case 'maxSpeed': return chartData.map(d => d.maxSpeed);
             case 'avgHr': return chartData.map(d => d.avgHr);
             case 'sessions': return chartData.map(d => d.sessions);
@@ -303,6 +305,21 @@ const ReportsPage: React.FC = () => {
                             const seconds = Math.round((value - minutes) * 60);
                             return `${label}: ${minutes}:${seconds.toString().padStart(2, '0')} /км`;
                         }
+                        if (label.includes('Продолжительность')) {
+                            return `${label}: ${formatTimeHMS(value)}`;
+                        }
+                        if (label.includes('Дистанция')) {
+                            return `${label}: ${value} км`;
+                        }
+                        if (label.includes('Подъём') || label.includes('Спуск')) {
+                            return `${label}: ${value} м`;
+                        }
+                        if (label.includes('Пульс')) {
+                            return `${label}: ${value} уд/мин`;
+                        }
+                        if (label.includes('Макс. скорость')) {
+                            return `${label}: ${value} м/с`;
+                        }
                         return `${label}: ${value}`;
                     }
                 }
@@ -315,6 +332,9 @@ const ReportsPage: React.FC = () => {
                 grid: { color: '#e9ecef' },
                 ticks: {
                     callback: (value: any) => {
+                        if (barMetric === 'duration') {
+                            return formatTimeHMS(value);
+                        }
                         return value;
                     }
                 }
@@ -323,10 +343,11 @@ const ReportsPage: React.FC = () => {
                 position: 'right' as const,
                 title: { display: true, text: getLineUnit(leftLineMetric) },
                 beginAtZero: true,
+                reverse: leftLineMetric === 'pace',
                 grid: { drawOnChartArea: false },
                 ticks: {
                     callback: (value: any) => {
-                        if (getLineUnit(leftLineMetric) === 'мин/км') {
+                        if (leftLineMetric === 'pace') {
                             const minutes = Math.floor(value);
                             const seconds = Math.round((value - minutes) * 60);
                             return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -344,7 +365,7 @@ const ReportsPage: React.FC = () => {
                     ticks: {
                         color: '#D1001C',
                         callback: (value: any) => {
-                            if (getLineUnit(rightLineMetric) === 'мин/км') {
+                            if (rightLineMetric === 'pace') {
                                 const minutes = Math.floor(value);
                                 const seconds = Math.round((value - minutes) * 60);
                                 return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -362,7 +383,7 @@ const ReportsPage: React.FC = () => {
         datasets: [
             {
                 label: barMetric === 'distance' ? 'Дистанция (км)' :
-                    barMetric === 'duration' ? 'Продолжительность (мин)' :
+                    barMetric === 'duration' ? 'Продолжительность' :
                         barMetric === 'ascent' ? 'Подъём (м)' : 'Спуск (м)',
                 data: barDataValues,
                 backgroundColor: 'rgba(209, 0, 28, 0.6)',
@@ -377,9 +398,9 @@ const ReportsPage: React.FC = () => {
                 label: getLineLabel(leftLineMetric),
                 data: leftLineDataValues,
                 borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                backgroundColor: 'transparent',
                 tension: 0.4,
-                fill: true,
+                fill: false,
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 type: 'line' as const,
@@ -389,9 +410,9 @@ const ReportsPage: React.FC = () => {
                 label: getLineLabel(rightLineMetric),
                 data: rightLineDataValues,
                 borderColor: '#198754',
-                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                backgroundColor: 'transparent',
                 tension: 0.4,
-                fill: true,
+                fill: false,
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 type: 'line' as const,
@@ -454,8 +475,7 @@ const ReportsPage: React.FC = () => {
     const metricsCards = [
         { label: 'Всего тренировок', value: metrics.totalTrainings ?? 0, unit: '' },
         { label: 'Общая дистанция', value: metrics.totalDistance ? (metrics.totalDistance / 1000).toFixed(2) : '0', unit: 'км' },
-        { label: 'Общее время', value: metrics.totalDuration ? formatDuration(metrics.totalDuration) : '0', unit: '' },
-        { label: 'Средний темп', value: metrics.avgPace ? formatPace(avgPaceSecPerKm) : '0:00', unit: '/км' },
+        { label: 'Общее время', value: metrics.totalDuration ? formatDurationHM(metrics.totalDuration) : '0', unit: '' },
         { label: 'Калории', value: metrics.totalCalories ?? 0, unit: 'ккал' },
         { label: 'Набор высоты', value: metrics.totalAscent ? metrics.totalAscent.toFixed(1) : '0', unit: 'м' },
         { label: 'Спуск', value: metrics.totalDescent ? metrics.totalDescent.toFixed(1) : '0', unit: 'м' },
@@ -554,9 +574,9 @@ const ReportsPage: React.FC = () => {
                     </div>
                 )}
 
-                <div className="row g-3 mb-5">
+                <div className="row g-3 mb-5 justify-content-center">
                     {metricsCards.map((card, idx) => (
-                        <div key={idx} className="col-md-3 col-6">
+                        <div key={idx} className="col-md-4 col-sm-6 col-6">
                             <div className="card border-0 shadow-sm text-center p-3" style={{ borderRadius: "12px" }}>
                                 <div style={{ fontSize: "13px", color: "#666", fontWeight: 500 }}>{card.label}</div>
                                 <div style={{ fontSize: "24px", fontWeight: 700, color: "#D1001C" }}>
@@ -576,7 +596,7 @@ const ReportsPage: React.FC = () => {
                                     <div className="d-flex gap-3 flex-wrap">
                                         <select className="form-select form-select-sm w-auto" value={barMetric} onChange={(e) => setBarMetric(e.target.value as any)}>
                                             <option value="distance">Дистанция (км)</option>
-                                            <option value="duration">Продолжительность (мин)</option>
+                                            <option value="duration">Продолжительность</option>
                                             <option value="ascent">Подъём (м)</option>
                                             <option value="descent">Спуск (м)</option>
                                         </select>
@@ -615,7 +635,7 @@ const ReportsPage: React.FC = () => {
                                     borderColor: chart.color,
                                     borderWidth: isBar ? 1 : 2,
                                     tension: 0.4,
-                                    fill: !isBar,
+                                    fill: false,
                                     pointRadius: isBar ? 0 : 3,
                                     barPercentage: 0.7,
                                     categoryPercentage: 0.8,
@@ -635,6 +655,9 @@ const ReportsPage: React.FC = () => {
                                                     const seconds = Math.round((value - minutes) * 60);
                                                     return `${label}: ${minutes}:${seconds.toString().padStart(2, '0')} /км`;
                                                 }
+                                                if (unit === 'ч:мм:сс') {
+                                                    return `${label}: ${formatTimeHMS(value)}`;
+                                                }
                                                 return `${label}: ${value} ${unit}`;
                                             }
                                         }
@@ -650,6 +673,9 @@ const ReportsPage: React.FC = () => {
                                                     const minutes = Math.floor(value);
                                                     const seconds = Math.round((value - minutes) * 60);
                                                     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                                                }
+                                                if (unit === 'ч:мм:сс') {
+                                                    return formatTimeHMS(value);
                                                 }
                                                 return value;
                                             }
