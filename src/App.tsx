@@ -18,6 +18,7 @@ import UserProfilePage from "./pages/UserProfilePage";
 import SettingsPage from './pages/SettingsPage';
 import TrainingDetailPage from "./pages/TrainingDetailPage";
 
+
 const AppRoutes: React.FC = () => {
     const { isCoach, isLoading } = useRole();
     console.log("App.tsx — isCoach:", isCoach);

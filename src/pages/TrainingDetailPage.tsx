@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Header from '../components/Header';
 import trainingService from '../api/trainingService';
 import { TrainingResponse } from '../api/trainingService';
-
 import MarkAsCompleteModal from '../components/modals/MarkAsCompleteModal';
-
+import sportService from '../api/sportService';
+import trainingTypeService from '../api/trainingTypeService';
 import {
     Chart as ChartJS,
     CategoryScale,
@@ -17,7 +17,6 @@ import {
     Legend,
     Filler
 } from 'chart.js';
-
 import { Line } from 'react-chartjs-2';
 import GpsMap from "../components/GpsMap";
 
@@ -55,6 +54,13 @@ const TrainingDetailPage: React.FC = () => {
 
     const [showMarkCompleteModal, setShowMarkCompleteModal] = useState(false);
 
+    const [sports, setSports] = useState<any[]>([]);
+    const [trainingTypes, setTrainingTypes] = useState<any[]>([]);
+
+    const [durationHours, setDurationHours] = useState<string>("");
+    const [durationMinutes, setDurationMinutes] = useState<string>("");
+    const [durationSeconds, setDurationSeconds] = useState<string>("");
+
     const handleCompleteRefresh = async () => {
         if (!training) return;
         const updatedTraining = await trainingService.getTrainingById(training.id);
@@ -88,8 +94,14 @@ const TrainingDetailPage: React.FC = () => {
             setLoading(true);
             try {
                 const data = await trainingService.getTrainingById(trainingId);
+                console.log("Данные тренировки:", data);
                 setTraining(data);
                 setEditForm(data);
+
+                const totalSec = data.duration || 0;
+                setDurationHours(Math.floor(totalSec / 3600).toString());
+                setDurationMinutes(Math.floor((totalSec % 3600) / 60).toString());
+                setDurationSeconds((totalSec % 60).toString());
             } catch (err: any) {
                 console.error("Ошибка загрузки тренировки:", err);
                 setError(err.response?.data?.message || "Не удалось загрузить данные тренировки");
@@ -100,6 +112,22 @@ const TrainingDetailPage: React.FC = () => {
 
         fetchTraining();
     }, [id]);
+
+    useEffect(() => {
+        const fetchDicts = async () => {
+            try {
+                const [sportsData, typesData] = await Promise.all([
+                    sportService.getSports(),
+                    trainingTypeService.getTrainingTypes()
+                ]);
+                setSports(sportsData);
+                setTrainingTypes(typesData);
+            } catch (error) {
+                console.error('Ошибка загрузки справочников:', error);
+            }
+        };
+        fetchDicts();
+    }, []);
 
     useEffect(() => {
         const updateContentHeight = () => {
@@ -152,60 +180,21 @@ const TrainingDetailPage: React.FC = () => {
         return `${minutes}:${seconds.toString().padStart(2, '0')} /км`;
     };
 
-    const [editingLapId, setEditingLapId] = useState<number | null>(null);
-    const [editingLapCaption, setEditingLapCaption] = useState("");
-    const handleSaveLapCaption = async (lapId: number) => {
-        if (!training) return;
-        try {
-            await trainingService.patchLapCaption(training.id, lapId, editingLapCaption);
-            const updatedTraining = await trainingService.getTrainingById(training.id);
-            setTraining(updatedTraining);
-            setEditingLapId(null);
-            setEditingLapCaption("");
-        } catch (error) {
-            console.error("Ошибка сохранения описания круга:", error);
-        }
-    };
-
-    const handleEditClick = () => {
-        setShowMenu(false);
-        setIsEditing(true);
-    };
-
-    const handleDeleteClick = () => {
-        setShowMenu(false);
-        setShowDeleteConfirm(true);
-        setDeleteConfirmed(false);
-        setDeleteError(null);
-    };
-
-    const handleDelete = async () => {
-        if (!deleteConfirmed || !training) return;
-
-        setIsDeleting(true);
-        setDeleteError(null);
-
-        try {
-            await trainingService.deleteTraining(training.id);
-            navigate('/calendar');
-        } catch (err: any) {
-            console.error("Ошибка при удалении тренировки:", err);
-            setDeleteError(err.response?.data?.message || "Ошибка при удалении тренировки");
-        } finally {
-            setIsDeleting(false);
-        }
-    };
-
     const handleSaveEdit = async () => {
         if (!training) return;
+
+        const hours = parseInt(durationHours) || 0;
+        const minutes = parseInt(durationMinutes) || 0;
+        const seconds = parseInt(durationSeconds) || 0;
+        const totalSeconds = hours * 3600 + minutes * 60 + seconds;
 
         const updateData = {
             id: training.id,
             sportsman_id: training.sportsman_id,
-            sport_id: training.sport_id || 1,
-            type_training_id: training.type_training_id || 1,
+            sport_id: editForm.sport_id || training.sport_id || 1,
+            type_training_id: editForm.type_training_id || training.type_training_id || 1,
             name_training: editForm.name_training || training.name_training || "",
-            duration: editForm.duration || training.duration || 0,
+            duration: totalSeconds,
             distance: editForm.distance || training.distance || 0,
             calories: editForm.calories || training.calories || 0,
             stress_score: editForm.stress_score || training.stress_score || 0,
@@ -228,8 +217,6 @@ const TrainingDetailPage: React.FC = () => {
             max_power: training.max_power || 0,
             status_training: Number(training.status_training) || 1
         };
-
-        console.log("Sending updateData:", updateData);
 
         try {
             await trainingService.updateTraining(training.id, updateData);
@@ -256,30 +243,56 @@ const TrainingDetailPage: React.FC = () => {
                 feeling_score: training.feeling_score,
                 comment_sportsman: training.comment_sportsman
             });
+
+            const totalSec = training.duration || 0;
+            setDurationHours(Math.floor(totalSec / 3600).toString());
+            setDurationMinutes(Math.floor((totalSec % 3600) / 60).toString());
+            setDurationSeconds((totalSec % 60).toString());
         }
         setIsEditing(false);
     };
 
-    const getHeartRateData = () => {
-        if (!training?.heart_rates || training.heart_rates.length === 0) return null;
+    const handleDeleteClick = () => {
+        setShowMenu(false);
+        setShowDeleteConfirm(true);
+        setDeleteConfirmed(false);
+        setDeleteError(null);
+    };
 
-        const sortedPoints = [...training.heart_rates].sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    const handleDelete = async () => {
+        if (!deleteConfirmed || !training) return;
+
+        setIsDeleting(true);
+        setDeleteError(null);
+
+        try {
+            await trainingService.deleteTraining(training.id);
+            navigate('/calendar');
+        } catch (err: any) {
+            console.error("Ошибка при удалении тренировки:", err);
+            setDeleteError(err.response?.data?.message || "Ошибка при удалении тренировки");
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+    const getHeartRateData = () => {
+        const validHeartRates = training?.heart_rates?.filter(
+            (item) => item.heart_rate && item.heart_rate > 0
         );
 
-        const startTime = new Date(sortedPoints[0].timestamp).getTime();
+        if (!validHeartRates || validHeartRates.length === 0) return null;
+
+        const sortedPoints = [...validHeartRates].sort((a, b) =>
+            Number(a.timestamp) - Number(b.timestamp)
+        );
 
         return {
-            labels: sortedPoints.map((item) => {
-                const currentTime = new Date(item.timestamp).getTime();
-                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const minutes = Math.floor(secondsFromStart / 60);
-                const seconds = secondsFromStart % 60;
-                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }),
             datasets: [{
                 label: 'Пульс (уд/мин)',
-                data: sortedPoints.map((item) => item.heart_rate),
+                data: sortedPoints.map((item) => ({
+                    x: Number(item.timestamp),
+                    y: item.heart_rate,
+                })),
                 borderColor: '#D1001C',
                 backgroundColor: 'rgba(209, 0, 28, 0.1)',
                 tension: 0.4,
@@ -294,22 +307,20 @@ const TrainingDetailPage: React.FC = () => {
         if (!training?.paces || training.paces.length === 0) return null;
 
         const sortedPoints = [...training.paces].sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            Number(a.timestamp) - Number(b.timestamp)
         );
 
-        const startTime = new Date(sortedPoints[0].timestamp).getTime();
-
         return {
-            labels: sortedPoints.map((item) => {
-                const currentTime = new Date(item.timestamp).getTime();
-                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const minutes = Math.floor(secondsFromStart / 60);
-                const seconds = secondsFromStart % 60;
-                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }),
             datasets: [{
-                label: 'Темп (мин/км)',
-                data: sortedPoints.map((item) => item.pace),
+                label: 'Темп',
+                data: sortedPoints.map((item) => {
+                    const speedMps = Number(item.pace);
+
+                    return {
+                        x: Number(item.timestamp),
+                        y: speedMps > 0 ? speedMps * 3.6 : null,
+                    };
+                }),
                 borderColor: '#0d6efd',
                 backgroundColor: 'rgba(13, 110, 253, 0.1)',
                 tension: 0.4,
@@ -324,22 +335,16 @@ const TrainingDetailPage: React.FC = () => {
         if (!training?.altitudes || training.altitudes.length === 0) return null;
 
         const sortedPoints = [...training.altitudes].sort((a, b) =>
-            new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            Number(a.timestamp) - Number(b.timestamp)
         );
 
-        const startTime = new Date(sortedPoints[0].timestamp).getTime();
-
         return {
-            labels: sortedPoints.map((item) => {
-                const currentTime = new Date(item.timestamp).getTime();
-                const secondsFromStart = Math.floor((currentTime - startTime) / 1000);
-                const minutes = Math.floor(secondsFromStart / 60);
-                const seconds = secondsFromStart % 60;
-                return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-            }),
             datasets: [{
                 label: 'Высота (м)',
-                data: sortedPoints.map((item) => item.altitude),
+                data: sortedPoints.map((item) => ({
+                    x: Number(item.timestamp),
+                    y: item.altitude,
+                })),
                 borderColor: '#198754',
                 backgroundColor: 'rgba(25, 135, 84, 0.1)',
                 tension: 0.4,
@@ -347,6 +352,34 @@ const TrainingDetailPage: React.FC = () => {
                 pointRadius: 0,
                 borderWidth: 2,
             }],
+        };
+    };
+
+    const formatChartTime = (seconds: number) => {
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+
+        return `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    };
+
+    const getChartTimeOptions = () => {
+        const duration = training?.duration || 0;
+
+        return {
+            type: 'linear' as const,
+            min: 0,
+            max: duration,
+            display: true,
+            grid: {
+                display: false,
+            },
+            ticks: {
+                maxTicksLimit: 10,
+                callback: (value: string | number): string => {
+                    return formatChartTime(Number(value));
+                },
+            },
         };
     };
 
@@ -360,18 +393,24 @@ const TrainingDetailPage: React.FC = () => {
             tooltip: {
                 mode: 'index' as const,
                 intersect: false,
+                callbacks: {
+                    title: (items: any[]): string => {
+                        return formatChartTime(Number(items[0].parsed.x));
+                    },
+                    label: (context: any) => {
+                        return `${context.dataset.label}: ${context.parsed.y}`;
+                    }
+                }
             },
         },
         scales: {
-            x: {
-                display: true,
-                grid: {
-                    display: false,
-                },
-            },
+            x: getChartTimeOptions(),
             y: {
                 display: true,
                 beginAtZero: false,
+                ticks: {
+                    maxTicksLimit: 6,
+                },
             },
         },
         elements: {
@@ -379,6 +418,50 @@ const TrainingDetailPage: React.FC = () => {
                 radius: 0,
             },
         },
+    };
+
+    const paceChartOptions = {
+        ...chartOptions,
+        plugins: {
+            ...chartOptions.plugins,
+            tooltip: {
+                mode: 'index' as const,
+                intersect: false,
+                callbacks: {
+                    title: (items: any[]): string => {
+                        return formatChartTime(Number(items[0].parsed.x));
+                    },
+                    label: (context: any): string => {
+                        return `Темп: ${formatPaceFromKmh(Number(context.parsed.y))}`;
+                    },
+                },
+            },
+        },
+        scales: {
+            x: getChartTimeOptions(),
+            y: {
+                display: true,
+                beginAtZero: false,
+                min: 5,
+                ticks: {
+                    maxTicksLimit: 6,
+                    callback: (value: string | number): string => {
+                        return formatPaceFromKmh(Number(value));
+                    },
+                },
+            },
+        },
+    };
+
+    const formatPaceFromKmh = (speedKmh: number) => {
+        if (!Number.isFinite(speedKmh) || speedKmh <= 1) return "";
+
+        const speedMps = speedKmh / 3.6;
+        const paceMin = 16.67 / speedMps;
+        const minutes = Math.floor(paceMin);
+        const seconds = Math.round((paceMin - minutes) * 60);
+
+        return `${minutes}:${seconds.toString().padStart(2, "0")} /км`;
     };
 
     if (loading) {
@@ -520,247 +603,10 @@ const TrainingDetailPage: React.FC = () => {
                 <div className="row mb-4">
                     <div className="col-12">
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                            <div>
-                                {isEditing ? (
-                                    <input
-                                        type="text"
-                                        value={editForm.name_training || ""}
-                                        onChange={(e) => setEditForm({ ...editForm, name_training: e.target.value })}
-                                        style={{
-                                            fontSize: "28px",
-                                            fontWeight: 700,
-                                            color: "#1a1a1a",
-                                            border: "1px solid #D1001C",
-                                            borderRadius: "8px",
-                                            padding: "4px 12px",
-                                            width: "100%",
-                                            maxWidth: "400px"
-                                        }}
-                                    />
-                                ) : (
-                                    <h1 style={{ color: "#1a1a1a", fontWeight: 700, fontSize: "28px" }}>
-                                        {training.name_training || "Тренировка"}
-                                    </h1>
-                                )}
-                                <div style={{ color: "#666", fontSize: "14px" }}>
-                                    {formatTime(training.time_start)}
-                                </div>
-                            </div>
+                            <div style={{ flex: 1 }}>
 
-                            <div style={{ position: "relative" }}>
-                                <button
-                                    onClick={() => setShowMenu(!showMenu)}
-                                    style={{
-                                        background: "none",
-                                        border: "none",
-                                        fontSize: 24,
-                                        cursor: "pointer",
-                                        color: "#666",
-                                        lineHeight: 1,
-                                        padding: "4px 12px",
-                                        borderRadius: 4,
-                                        letterSpacing: "2px"
-                                    }}
-                                    aria-label="Меню"
-                                >
-                                    ⋯
-                                </button>
-
-                                {String(training.status_training) !== "Завершено" && (
-                                    <button
-                                        onClick={() => setShowMarkCompleteModal(true)}
-                                        style={{
-                                            background: "none",
-                                            border: "none",
-                                            fontSize: 24,
-                                            cursor: "pointer",
-                                            color: "#D1001C",
-                                            lineHeight: 1,
-                                            padding: "4px 12px",
-                                            borderRadius: 4
-                                        }}
-                                        aria-label="Отметить выполнение"
-                                        title="Отметить выполнение"
-                                    >
-                                        ✓
-                                    </button>
-                                )}
-
-                                {showMenu && !showDeleteConfirm && (
-                                    <div style={{
-                                        position: "absolute",
-                                        top: "100%",
-                                        right: 0,
-                                        background: "white",
-                                        borderRadius: 12,
-                                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
-                                        border: "1px solid #e7eaf0",
-                                        minWidth: 140,
-                                        zIndex: 1001,
-                                        overflow: "hidden"
-                                    }}>
-                                        <button
-                                            onClick={() => setShowMarkCompleteModal(true)}
-                                            style={{
-                                                background: "none",
-                                                border: "none",
-                                                fontSize: 24,
-                                                cursor: "pointer",
-                                                color: "#D1001C",
-                                                lineHeight: 1,
-                                                padding: "4px 12px",
-                                                borderRadius: 4
-                                            }}
-                                            aria-label="Отметить выполнение"
-                                        >
-                                            Отметить выполнение
-                                        </button>
-
-                                        <button
-                                            onClick={handleEditClick}
-                                            style={{
-                                                width: "100%",
-                                                padding: "12px 16px",
-                                                textAlign: "left",
-                                                background: "none",
-                                                border: "none",
-                                                color: "#333",
-                                                fontSize: 14,
-                                                cursor: "pointer"
-                                            }}
-                                            onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
-                                            onMouseOut={(e) => e.currentTarget.style.background = "none"}
-                                        >
-                                            Редактировать
-                                        </button>
-
-                                        <button
-                                            onClick={handleDeleteClick}
-                                            style={{
-                                                width: "100%",
-                                                padding: "12px 16px",
-                                                textAlign: "left",
-                                                background: "none",
-                                                border: "none",
-                                                color: "#dc3545",
-                                                fontSize: 14,
-                                                cursor: "pointer"
-                                            }}
-                                            onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
-                                            onMouseOut={(e) => e.currentTarget.style.background = "none"}
-                                        >
-                                            Удалить
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {isEditing && (
-                    <div className="row mb-4">
-                        <div className="col-12">
-                            <div className="card border-0 shadow-sm" style={{ borderRadius: "12px" }}>
-                                <div className="card-body p-4">
-                                    <h5 style={{ marginBottom: "20px", color: "#1a1a1a", fontWeight: 600 }}>Редактирование тренировки</h5>
-                                    <div className="row">
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Название тренировки</label>
-                                            <input
-                                                type="text"
-                                                className="form-control"
-                                                value={editForm.name_training || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, name_training: e.target.value })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Вид спорта (ID)</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={editForm.sport_id || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, sport_id: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Тип тренировки (ID)</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={editForm.type_training_id || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, type_training_id: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Длительность (сек)</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={editForm.duration || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Дистанция (м)</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={editForm.distance || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, distance: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Калории</label>
-                                            <input
-                                                type="number"
-                                                className="form-control"
-                                                value={editForm.calories || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, calories: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Нагрузка (1-10)</label>
-                                            <input
-                                                type="number"
-                                                min="1"
-                                                max="10"
-                                                className="form-control"
-                                                value={editForm.stress_score || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, stress_score: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
-                                        <div className="col-md-6 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Самочувствие (1-5)</label>
-                                            <select
-                                                className="form-control"
-                                                value={editForm.feeling_score || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, feeling_score: parseInt(e.target.value) || 0 })}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            >
-                                                <option value="0">Выберите</option>
-                                                {feelingLabels.map((label, idx) => (
-                                                    <option key={idx + 1} value={idx + 1}>{label}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="col-12 mb-3">
-                                            <label style={{ display: "block", marginBottom: "5px", color: "#666", fontSize: "14px" }}>Комментарий</label>
-                                            <textarea
-                                                className="form-control"
-                                                value={editForm.comment_sportsman || ""}
-                                                onChange={(e) => setEditForm({ ...editForm, comment_sportsman: e.target.value })}
-                                                rows={3}
-                                                style={{ borderRadius: "8px", border: "1px solid #ddd", padding: "8px 12px" }}
-                                            />
-                                        </div>
+                                {isEditing && (
+                                    <div className="row mb-4">
                                         <div className="col-12">
                                             <div style={{ display: "flex", gap: "12px", justifyContent: "flex-end" }}>
                                                 <button
@@ -794,11 +640,235 @@ const TrainingDetailPage: React.FC = () => {
                                             </div>
                                         </div>
                                     </div>
+                                )}
+
+                                {!isEditing ? (
+                                    <h1 style={{ color: "#1a1a1a", fontWeight: 700, fontSize: "28px", marginBottom: "8px" }}>
+                                        {training.name_training || "Тренировка"}
+                                    </h1>
+                                ) : (
+                                    <input
+                                        type="text"
+                                        value={editForm.name_training || ""}
+                                        onChange={(e) => setEditForm({ ...editForm, name_training: e.target.value })}
+                                        style={{ fontSize: "28px", fontWeight: 700, marginBottom: "8px", border: "1px solid #D1001C", borderRadius: "8px", padding: "4px 8px", width: "100%" }}
+                                    />
+                                )}
+                                <div style={{ color: "#666", fontSize: "14px", marginTop: "4px", marginBottom: "12px" }}>
+                                    {formatTime(training.time_start)}
                                 </div>
+                                {!isEditing ? (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "8px" }}>
+        <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            background: "#f8f9fa",
+            padding: "6px 16px",
+            borderRadius: "20px",
+            border: "1px solid #e7eaf0",
+            fontSize: "14px",
+            color: "#333"
+        }}>
+            Вид спорта: {training.sport || "Не указан"}
+        </span>
+                                        <span style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: "8px",
+                                            background: "#f8f9fa",
+                                            padding: "6px 16px",
+                                            borderRadius: "20px",
+                                            border: "1px solid #e7eaf0",
+                                            fontSize: "14px",
+                                            color: "#333"
+                                        }}>
+            Тип тренировки: {training.type_training || "Не указан"}
+        </span>
+                                    </div>
+                                ) : (
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                                        <select
+                                            value={editForm.sport_id || training.sport_id || 1}
+                                            onChange={(e) => setEditForm({ ...editForm, sport_id: parseInt(e.target.value) })}
+                                            style={{
+                                                width: "200px",
+                                                padding: "8px 32px 8px 16px",
+                                                borderRadius: "20px",
+                                                background: "white",
+                                                border: "1px solid #e0e4e8",
+                                                color: "#1a1a1a",
+                                                fontSize: "14px",
+                                                fontWeight: "500",
+                                                cursor: "pointer",
+                                                fontFamily: "inherit",
+                                                outline: "none",
+                                                transition: "all 0.2s ease",
+                                                appearance: "none",
+                                                WebkitAppearance: "none",
+                                                MozAppearance: "none",
+                                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D1001C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                                                backgroundRepeat: "no-repeat",
+                                                backgroundPosition: "right 12px center",
+                                                backgroundSize: "14px"
+                                            }}
+                                            onFocus={(e) => {
+                                                e.target.style.borderColor = "#D1001C";
+                                                e.target.style.boxShadow = "0 0 0 3px rgba(209, 0, 28, 0.1)";
+                                            }}
+                                            onBlur={(e) => {
+                                                e.target.style.borderColor = "#e0e4e8";
+                                                e.target.style.boxShadow = "none";
+                                            }}
+                                        >
+                                            {sports.map(sport => (
+                                                <option key={sport.id} value={sport.id}>
+                                                    {sport.sport_name || sport.name || `Вид спорта ${sport.id}`}
+                                                </option>
+                                            ))}
+                                        </select>
+
+                                        <select
+                                            value={editForm.type_training_id || training.type_training_id || 1}
+                                            onChange={(e) => setEditForm({ ...editForm, type_training_id: parseInt(e.target.value) })}
+                                            style={{
+                                                width: "200px",
+                                                padding: "8px 32px 8px 16px",
+                                                borderRadius: "20px",
+                                                background: "white",
+                                                border: "1px solid #e0e4e8",
+                                                color: "#1a1a1a",
+                                                fontSize: "14px",
+                                                fontWeight: "500",
+                                                cursor: "pointer",
+                                                fontFamily: "inherit",
+                                                outline: "none",
+                                                transition: "all 0.2s ease",
+                                                appearance: "none",
+                                                WebkitAppearance: "none",
+                                                MozAppearance: "none",
+                                                backgroundImage: `url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23D1001C' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e")`,
+                                                backgroundRepeat: "no-repeat",
+                                                backgroundPosition: "right 12px center",
+                                                backgroundSize: "14px"
+                                            }}
+                                            onFocus={(e) => {
+                                                e.target.style.borderColor = "#D1001C";
+                                                e.target.style.boxShadow = "0 0 0 3px rgba(209, 0, 28, 0.1)";
+                                            }}
+                                            onBlur={(e) => {
+                                                e.target.style.borderColor = "#e0e4e8";
+                                                e.target.style.boxShadow = "none";
+                                            }}
+                                        >
+                                            {trainingTypes.map(type => (
+                                                <option key={type.id} value={type.id}>
+                                                    {type.type_training_name || type.name || `Тип тренировки ${type.id}`}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div style={{ position: "relative" }}>
+                                <button
+                                    onClick={() => setShowMenu(!showMenu)}
+                                    style={{
+                                        background: "none",
+                                        border: "none",
+                                        fontSize: 24,
+                                        cursor: "pointer",
+                                        color: "#666",
+                                        lineHeight: 1,
+                                        padding: "4px 12px",
+                                        borderRadius: 4,
+                                        letterSpacing: "2px"
+                                    }}
+                                    aria-label="Меню"
+                                >
+                                    ⋯
+                                </button>
+
+                                {showMenu && !showDeleteConfirm && (
+                                    <div style={{
+                                        position: "absolute",
+                                        top: "100%",
+                                        right: 0,
+                                        background: "white",
+                                        borderRadius: 12,
+                                        boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                                        border: "1px solid #e7eaf0",
+                                        minWidth: 200,
+                                        zIndex: 1001,
+                                        overflow: "hidden"
+                                    }}>
+                                        <button
+                                            onClick={() => {
+                                                setShowMarkCompleteModal(true);
+                                                setShowMenu(false);
+                                            }}
+                                            style={{
+                                                width: "100%",
+                                                padding: "12px 16px",
+                                                textAlign: "left",
+                                                background: "none",
+                                                border: "none",
+                                                color: "#333",
+                                                fontSize: 14,
+                                                cursor: "pointer"
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
+                                            onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                        >
+                                            Отметить выполнение
+                                        </button>
+
+                                        <button
+                                            onClick={() => {
+                                                setIsEditing(true);
+                                                setShowMenu(false);
+                                            }}
+                                            style={{
+                                                width: "100%",
+                                                padding: "12px 16px",
+                                                textAlign: "left",
+                                                background: "none",
+                                                border: "none",
+                                                color: "#333",
+                                                fontSize: 14,
+                                                cursor: "pointer"
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
+                                            onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                        >
+                                            Редактировать
+                                        </button>
+
+                                        <button
+                                            onClick={handleDeleteClick}
+                                            style={{
+                                                width: "100%",
+                                                padding: "12px 16px",
+                                                textAlign: "left",
+                                                background: "none",
+                                                border: "none",
+                                                color: "#333",
+                                                fontSize: 14,
+                                                cursor: "pointer"
+                                            }}
+                                            onMouseOver={(e) => e.currentTarget.style.background = "#f8f9fa"}
+                                            onMouseOut={(e) => e.currentTarget.style.background = "none"}
+                                        >
+                                            Удалить
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
-                )}
+                </div>
+
 
                 <div className="row mb-5">
                     <div className="col-12">
@@ -812,9 +882,10 @@ const TrainingDetailPage: React.FC = () => {
                                         {isEditing ? (
                                             <input
                                                 type="number"
-                                                value={editForm.distance || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, distance: parseInt(e.target.value) || 0 })}
-                                                style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700, width: "100px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
+                                                step="0.01"
+                                                value={editForm.distance ? (editForm.distance / 1000).toFixed(2) : 0}
+                                                onChange={(e) => setEditForm({ ...editForm, distance: Math.round(parseFloat(e.target.value) * 1000) })}
+                                                style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700, width: "120px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px", padding: "4px" }}
                                             />
                                         ) : (
                                             <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
@@ -828,12 +899,31 @@ const TrainingDetailPage: React.FC = () => {
                                             Время
                                         </div>
                                         {isEditing ? (
-                                            <input
-                                                type="number"
-                                                value={editForm.duration || 0}
-                                                onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
-                                                style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700, width: "120px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
-                                            />
+                                            <div style={{ display: "flex", gap: "4px", alignItems: "center", justifyContent: "center" }}>
+                                                <input
+                                                    type="number"
+                                                    placeholder="Ч"
+                                                    value={durationHours}
+                                                    onChange={(e) => setDurationHours(e.target.value)}
+                                                    style={{ width: "50px", padding: "4px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
+                                                />
+                                                <span>:</span>
+                                                <input
+                                                    type="number"
+                                                    placeholder="М"
+                                                    value={durationMinutes}
+                                                    onChange={(e) => setDurationMinutes(e.target.value)}
+                                                    style={{ width: "50px", padding: "4px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
+                                                />
+                                                <span>:</span>
+                                                <input
+                                                    type="number"
+                                                    placeholder="С"
+                                                    value={durationSeconds}
+                                                    onChange={(e) => setDurationSeconds(e.target.value)}
+                                                    style={{ width: "50px", padding: "4px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
+                                                />
+                                            </div>
                                         ) : (
                                             <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
                                                 {formatDuration(training.duration)}
@@ -868,7 +958,7 @@ const TrainingDetailPage: React.FC = () => {
                                                 type="number"
                                                 value={editForm.calories || 0}
                                                 onChange={(e) => setEditForm({ ...editForm, calories: parseInt(e.target.value) || 0 })}
-                                                style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700, width: "100px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px" }}
+                                                style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700, width: "100px", textAlign: "center", border: "1px solid #D1001C", borderRadius: "4px", padding: "4px" }}
                                             />
                                         ) : (
                                             <div style={{ color: "#D1001C", fontSize: "22px", fontWeight: 700 }}>
@@ -933,7 +1023,9 @@ const TrainingDetailPage: React.FC = () => {
                                             style={{ width: "100%", minHeight: "260px", border: "1px solid #D1001C", borderRadius: "8px", padding: "8px" }}
                                         />
                                     ) : (
-                                        training.comment_sportsman || "Нет примечаний"
+                                        <div style={{ whiteSpace: "pre-wrap" }}>
+                                            {training.comment_sportsman || "Нет примечаний"}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -958,7 +1050,7 @@ const TrainingDetailPage: React.FC = () => {
                             <div className="card-body p-4">
                                 <h5>Темп</h5>
                                 <div style={{ height: "200px" }}>
-                                    {getPaceData() ? <Line data={getPaceData()!} options={chartOptions} /> : "Нет данных"}
+                                    {getPaceData() ? <Line data={getPaceData()!} options={paceChartOptions} /> : "Нет данных"}
                                 </div>
                             </div>
                         </div>
@@ -1056,14 +1148,23 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Воспринимаемые усилия
                                                             </div>
                                                             {isEditing ? (
-                                                                <input
-                                                                    type="number"
-                                                                    min="1"
-                                                                    max="10"
-                                                                    value={editForm.stress_score || 0}
-                                                                    onChange={(e) => setEditForm({ ...editForm, stress_score: parseInt(e.target.value) || 0 })}
-                                                                    style={{ fontSize: "18px", width: "80px", border: "1px solid #D1001C", borderRadius: "4px", padding: "4px" }}
-                                                                />
+                                                                <div>
+                                                                    <div className="d-flex align-items-center">
+                                                                        <input
+                                                                            type="range"
+                                                                            className="form-range"
+                                                                            min="1"
+                                                                            max="10"
+                                                                            step="1"
+                                                                            value={editForm.stress_score || 1}
+                                                                            onChange={(e) => setEditForm({ ...editForm, stress_score: parseInt(e.target.value) })}
+                                                                            style={{ flex: 1 }}
+                                                                        />
+                                                                        <span className="ms-3 fw-bold" style={{ minWidth: "30px", textAlign: "center" }}>
+                                                                            {editForm.stress_score || 1}/10
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
                                                             ) : (
                                                                 <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
                                                                     {training.stress_score ?? "-"}/10
@@ -1075,16 +1176,27 @@ const TrainingDetailPage: React.FC = () => {
                                                                 Как вы себя чувствовали?
                                                             </div>
                                                             {isEditing ? (
-                                                                <select
-                                                                    value={editForm.feeling_score || 0}
-                                                                    onChange={(e) => setEditForm({ ...editForm, feeling_score: parseInt(e.target.value) || 0 })}
-                                                                    style={{ fontSize: "18px", border: "1px solid #D1001C", borderRadius: "4px", padding: "4px" }}
-                                                                >
-                                                                    <option value="0">Выберите</option>
+                                                                <div className="d-flex flex-wrap" style={{ gap: "0.5rem" }}>
                                                                     {feelingLabels.map((label, idx) => (
-                                                                        <option key={idx + 1} value={idx + 1}>{label}</option>
+                                                                        <button
+                                                                            key={idx + 1}
+                                                                            type="button"
+                                                                            onClick={() => setEditForm({ ...editForm, feeling_score: idx + 1 })}
+                                                                            style={{
+                                                                                flex: "1 1 0",
+                                                                                borderRadius: "8px",
+                                                                                padding: "8px",
+                                                                                border: "1px solid #D1001C",
+                                                                                backgroundColor: editForm.feeling_score === idx + 1 ? "#D1001C" : "transparent",
+                                                                                color: editForm.feeling_score === idx + 1 ? "white" : "#D1001C",
+                                                                                cursor: "pointer",
+                                                                                fontSize: "12px"
+                                                                            }}
+                                                                        >
+                                                                            {label}
+                                                                        </button>
                                                                     ))}
-                                                                </select>
+                                                                </div>
                                                             ) : (
                                                                 <div style={{ fontSize: "18px", color: "#1a1a1a", fontWeight: 500 }}>
                                                                     {training.feeling_score ? feelingLabels[training.feeling_score - 1] : "-"}

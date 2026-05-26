@@ -1,5 +1,4 @@
 import api from './axios';
-
 export interface TrainingUploadData {
     sportsman_id: number;
     sport_id: number;
@@ -89,8 +88,8 @@ export interface TrainingResponse {
     coach_creator: number | null;
     comment_coach: string | null;
     status_training: number;
-    sport_name?: string;
-    type_training_name?: string;
+    sport?: string;
+    type_training?: string;
     trackpoints?: Array<{
         duration_point: string;
         latitude: number;
