@@ -9,9 +9,10 @@ type Props = {
     onClose: () => void;
     formatHms: (totalSec: number) => string;
     formatPace: (paceSecPerKm: number) => string;
+    sportsmanId?: number;
 };
 
-const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, formatPace }) => {
+const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, formatPace, sportsmanId }) => {
     const navigate = useNavigate();
     const [showMenu, setShowMenu] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -65,7 +66,16 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
     };
 
     const handleDetailsClick = () => {
-        navigate(`/training/${training.id}`);
+        if (sportsmanId) {
+            navigate(`/training/${training.id}`, {
+                state: {
+                    sportsmanId
+                }
+            });
+        } else {
+            navigate(`/training/${training.id}`);
+        }
+
         onClose();
     };
 
@@ -505,8 +515,17 @@ const TrainingDetailsModal: React.FC<Props> = ({ training, onClose, formatHms, f
                     </div>
                 </div>
 
-                <div style={{ marginBottom: 24 }}>
-                    <GpsMap points={gpsPoints} apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a" />
+                <div
+                    style={{
+                        height: 280,
+                        width: "100%",
+                        marginBottom: 24
+                    }}
+                >
+                    <GpsMap
+                        points={gpsPoints}
+                        apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a"
+                    />
                 </div>
 
                 <div style={{ marginBottom: 16 }}>

@@ -108,7 +108,7 @@ const GpsMap: React.FC<Props> = ({ points = [], apiKey }) => {
     if (!hasPoints) {
         return (
             <div style={{
-                height: 280,
+                height: "100%",
                 borderRadius: 14,
                 overflow: "hidden",
                 border: "1px solid #e7eaf0",
@@ -125,17 +125,20 @@ const GpsMap: React.FC<Props> = ({ points = [], apiKey }) => {
     }
 
     return (
-        <div style={{
-            height: 280,
-            borderRadius: 14,
-            overflow: "hidden",
-            border: "1px solid #e7eaf0",
-            position: "relative"
-        }}>
+        <div
+            style={{
+                height: "100%",
+                width: "100%",
+                minHeight: 0
+            }}
+        >
             <MapContainer
                 center={center}
                 zoom={13}
-                style={{ height: "100%", width: "100%" }}
+                style={{
+                    height: "100%",
+                    width: "100%"
+                }}
                 scrollWheelZoom={false}
                 key={`map-${points.length}`}
                 bounds={bounds || undefined}

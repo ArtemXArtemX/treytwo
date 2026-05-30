@@ -18,10 +18,10 @@ import UserProfilePage from "./pages/UserProfilePage";
 import SettingsPage from './pages/SettingsPage';
 import TrainingDetailPage from "./pages/TrainingDetailPage";
 
+import CoachSearchPage from "./pages/Athlete/CoachSearchPage";
 
 const AppRoutes: React.FC = () => {
     const { isCoach, isLoading } = useRole();
-    console.log("App.tsx — isCoach:", isCoach);
 
     if (isLoading) {
         return (
@@ -47,6 +47,7 @@ const AppRoutes: React.FC = () => {
                     <Route path="/calendar" element={<AthleteCalendarPage />} />
                     <Route path="/coaches" element={<AthleteCoachPage />} />
                     <Route path="/reports" element={<AthleteReportsPage />} />
+                    <Route path="/coaches/search" element={<CoachSearchPage />} />
                 </>
             )}
 

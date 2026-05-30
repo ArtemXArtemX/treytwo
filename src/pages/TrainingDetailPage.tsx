@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation } from "react-router-dom";
 import Header from '../components/Header';
 import trainingService from '../api/trainingService';
 import { TrainingResponse } from '../api/trainingService';
@@ -19,6 +20,9 @@ import {
 } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import GpsMap from "../components/GpsMap";
+import coachService from '../api/coachService';
+import { useRole } from '../context/RoleContext';
+import authService from '../api/authService';
 
 ChartJS.register(
     CategoryScale,
@@ -34,6 +38,7 @@ ChartJS.register(
 const TrainingDetailPage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const { isCoach } = useRole();
     const [training, setTraining] = useState<TrainingResponse | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -68,6 +73,24 @@ const TrainingDetailPage: React.FC = () => {
         setEditForm(updatedTraining);
     };
 
+    const location = useLocation();
+    const sportsmanId = location.state?.sportsmanId;
+
+    const [coachComment, setCoachComment] = useState("");
+    const [isEditingCoachComment, setIsEditingCoachComment] = useState(false);
+    const [isSavingCoachComment, setIsSavingCoachComment] = useState(false);
+    const currentUser = authService.getCurrentUser();
+    const currentUserId = Number(currentUser?.id);
+
+    const isDoneTraining = String(training?.status_training) === "Завершено" || Number(training?.status_training) === 1;
+
+    const canCoachComment =
+        isCoach &&
+        isDoneTraining &&
+        Number(training?.coach_creator) === currentUserId;
+
+    const hasCoachComment = Boolean(training?.comment_coach || coachComment);
+
     const feelingLabels = [
         "😫 Очень слабым",
         "😔 Слабым",
@@ -93,10 +116,14 @@ const TrainingDetailPage: React.FC = () => {
 
             setLoading(true);
             try {
-                const data = await trainingService.getTrainingById(trainingId);
+                const data = isCoach
+                    ? await coachService.getSportsmanTrainingById(trainingId, sportsmanId)
+                    : await trainingService.getTrainingById(trainingId);
                 console.log("Данные тренировки:", data);
                 setTraining(data);
                 setEditForm(data);
+                setCoachComment(data.comment_coach || "");
+                setIsEditingCoachComment(!data.comment_coach);
 
                 const totalSec = data.duration || 0;
                 setDurationHours(Math.floor(totalSec / 3600).toString());
@@ -220,7 +247,9 @@ const TrainingDetailPage: React.FC = () => {
 
         try {
             await trainingService.updateTraining(training.id, updateData);
-            const updatedTraining = await trainingService.getTrainingById(training.id);
+            const updatedTraining = isCoach
+                ? await coachService.getSportsmanTrainingById(training.id, sportsmanId)
+                : await trainingService.getTrainingById(training.id);
             setTraining(updatedTraining);
             setEditForm(updatedTraining);
             setIsEditing(false);
@@ -274,6 +303,30 @@ const TrainingDetailPage: React.FC = () => {
         } finally {
             setIsDeleting(false);
         }
+    };
+
+    const handleSaveCoachComment = async () => {
+        if (!training) return;
+
+        try {
+            setIsSavingCoachComment(true);
+
+            await coachService.patchTrainingComment(
+                training.id,
+                coachComment
+            );
+
+            setTraining({
+                ...training,
+                comment_coach: coachComment
+            });
+
+        } catch (err: any) {
+            alert(err.response?.data?.message || "Ошибка сохранения комментария");
+        } finally {
+            setIsSavingCoachComment(false);
+        }
+        setIsEditingCoachComment(false);
     };
     const getHeartRateData = () => {
         const validHeartRates = training?.heart_rates?.filter(
@@ -787,7 +840,11 @@ const TrainingDetailPage: React.FC = () => {
                                     }}
                                     aria-label="Меню"
                                 >
-                                    ⋯
+                                    {!isCoach && (
+                                        <div style={{ position: "relative" }}>
+                                            ⋯
+                                        </div>
+                                    )}
                                 </button>
 
                                 {showMenu && !showDeleteConfirm && (
@@ -972,66 +1029,237 @@ const TrainingDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="row mb-5">
-                    <div className="col-md-8 mb-4">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "400px" }}>
-                            <div className="card-body p-4">
-                                <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
+                <div className="row g-4 mb-5 align-items-stretch">
+                    <div className="col-lg-6">
+                        <div
+                            className="card border-0 shadow-sm"
+                            style={{
+                                borderRadius: "12px",
+                                height: "100%"
+                            }}
+                        >
+                            <div
+                                className="card-body p-4"
+                                style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    height: "100%"
+                                }}
+                            >
+                                <h5
+                                    style={{
+                                        color: "#1a1a1a",
+                                        fontWeight: 600,
+                                        marginBottom: "20px"
+                                    }}
+                                >
                                     GPS-трек
                                 </h5>
-                                {training.is_gps && training.trackpoints ? (
-                                    <GpsMap
-                                        points={training.trackpoints.map(tp => ({
-                                            lat: tp.latitude,
-                                            lon: tp.longitude
-                                        }))}
-                                        apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a"
-                                    />
-                                ) : (
-                                    <div style={{
-                                        height: "300px",
+
+                                <div
+                                    style={{
+                                        flex: 1,
+                                        minHeight: "430px",
                                         backgroundColor: "#f8f9fa",
                                         borderRadius: "8px",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        color: "#666"
-                                    }}>
-                                        GPS данные отсутствуют
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="col-md-4 mb-4">
-                        <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", height: "400px" }}>
-                            <div className="card-body p-4">
-                                <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
-                                    Примечания
-                                </h5>
-                                <div style={{
-                                    backgroundColor: "#f8f9fa",
-                                    borderRadius: "8px",
-                                    padding: "15px",
-                                    minHeight: "300px"
-                                }}>
-                                    {isEditing ? (
-                                        <textarea
-                                            value={editForm.comment_sportsman || ""}
-                                            onChange={(e) => setEditForm({ ...editForm, comment_sportsman: e.target.value })}
-                                            style={{ width: "100%", minHeight: "260px", border: "1px solid #D1001C", borderRadius: "8px", padding: "8px" }}
+                                        overflow: "hidden"
+                                    }}
+                                >
+                                    {training.is_gps && training.trackpoints ? (
+                                        <GpsMap
+                                            points={training.trackpoints.map(tp => ({
+                                                lat: tp.latitude,
+                                                lon: tp.longitude
+                                            }))}
+                                            apiKey="3ce511d9-9924-4617-972c-73d5ec89be1a"
                                         />
                                     ) : (
-                                        <div style={{ whiteSpace: "pre-wrap" }}>
-                                            {training.comment_sportsman || "Нет примечаний"}
+                                        <div
+                                            style={{
+                                                height: "100%",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                color: "#666"
+                                            }}
+                                        >
+                                            GPS данные отсутствуют
                                         </div>
                                     )}
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <div className="col-lg-6">
+                        <div style={{ display: "flex", flexDirection: "column", gap: "20px", height: "100%" }}>
+                            <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", flex: 1 }}>
+                                <div className="card-body p-4">
+                                    <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
+                                        Примечания
+                                    </h5>
+
+                                    <div
+                                        style={{
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            padding: "15px",
+                                            minHeight: "140px"
+                                        }}
+                                    >
+                                        {isEditing ? (
+                                            <textarea
+                                                value={editForm.comment_sportsman || ""}
+                                                onChange={(e) =>
+                                                    setEditForm({ ...editForm, comment_sportsman: e.target.value })
+                                                }
+                                                style={{
+                                                    width: "100%",
+                                                    minHeight: "120px",
+                                                    border: "1px solid #D1001C",
+                                                    borderRadius: "8px",
+                                                    padding: "8px",
+                                                    resize: "none"
+                                                }}
+                                            />
+                                        ) : (
+                                            <div style={{ whiteSpace: "pre-wrap" }}>
+                                                {training.comment_sportsman || "Нет примечаний"}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="card border-0 shadow-sm" style={{ borderRadius: "12px", flex: 1 }}>
+                                <div className="card-body p-4">
+                                    <h5 style={{ color: "#1a1a1a", fontWeight: 600, marginBottom: "20px" }}>
+                                        Комментарий тренера
+                                    </h5>
+
+                                    <div
+                                        style={{
+                                            backgroundColor: "#f8f9fa",
+                                            borderRadius: "8px",
+                                            padding: "15px",
+                                            minHeight: "140px",
+                                            display: "flex",
+                                            flexDirection: "column"
+                                        }}
+                                    >
+                                        {isCoach ? (
+                                            canCoachComment ? (
+                                                isEditingCoachComment ? (
+                                                    <>
+                <textarea
+                    value={coachComment}
+                    onChange={(e) => setCoachComment(e.target.value)}
+                    placeholder="Напишите комментарий спортсмену..."
+                    style={{
+                        width: "100%",
+                        minHeight: "95px",
+                        border: "1px solid #D1001C",
+                        borderRadius: "8px",
+                        padding: "10px",
+                        resize: "none"
+                    }}
+                />
+
+                                                        <div style={{
+                                                            display: "flex",
+                                                            gap: "8px",
+                                                            marginTop: "12px"
+                                                        }}>
+                                                            <button
+                                                                onClick={handleSaveCoachComment}
+                                                                disabled={isSavingCoachComment || !coachComment.trim()}
+                                                                style={{
+                                                                    flex: 1,
+                                                                    padding: "10px 16px",
+                                                                    borderRadius: "8px",
+                                                                    background: "#D1001C",
+                                                                    border: "none",
+                                                                    color: "white",
+                                                                    fontWeight: 500,
+                                                                    cursor: isSavingCoachComment || !coachComment.trim() ? "not-allowed" : "pointer",
+                                                                    opacity: isSavingCoachComment || !coachComment.trim() ? 0.7 : 1
+                                                                }}
+                                                            >
+                                                                {isSavingCoachComment
+                                                                    ? "Сохранение..."
+                                                                    : training.comment_coach
+                                                                        ? "Сохранить"
+                                                                        : "Отправить"}
+                                                            </button>
+
+                                                            {training.comment_coach && (
+                                                                <button
+                                                                    onClick={() => {
+                                                                        setCoachComment(training.comment_coach || "");
+                                                                        setIsEditingCoachComment(false);
+                                                                    }}
+                                                                    disabled={isSavingCoachComment}
+                                                                    style={{
+                                                                        padding: "10px 16px",
+                                                                        borderRadius: "8px",
+                                                                        background: "transparent",
+                                                                        border: "1px solid #6c757d",
+                                                                        color: "#6c757d",
+                                                                        fontWeight: 500,
+                                                                        cursor: "pointer"
+                                                                    }}
+                                                                >
+                                                                    Отмена
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    </>
+                                                ) : (
+                                                    <div style={{ position: "relative", minHeight: "95px" }}>
+                                                        <button
+                                                            onClick={() => setIsEditingCoachComment(true)}
+                                                            title="Редактировать комментарий"
+                                                            style={{
+                                                                position: "absolute",
+                                                                top: 0,
+                                                                right: 0,
+                                                                border: "none",
+                                                                background: "transparent",
+                                                                color: "#D1001C",
+                                                                cursor: "pointer",
+                                                                fontSize: "18px",
+                                                                lineHeight: 1
+                                                            }}
+                                                        >
+                                                            ✎
+                                                        </button>
+
+                                                        <div style={{
+                                                            whiteSpace: "pre-wrap",
+                                                            lineHeight: 1.5,
+                                                            paddingRight: "28px"
+                                                        }}>
+                                                            {training.comment_coach}
+                                                        </div>
+                                                    </div>
+                                                )
+                                            ) : (
+                                                <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5, color: "#666" }}>
+                                                    {training.comment_coach || "Комментарий тренера недоступен для этой тренировки"}
+                                                </div>
+                                            )
+                                        ) : (
+                                            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                                                {training.comment_coach || "Комментарий тренера отсутствует"}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
 
                 <div className="row mb-5">
                     <div className="col-12 mb-4">
@@ -1449,7 +1677,7 @@ const TrainingDetailPage: React.FC = () => {
                     </div>
                 </div>
             </div>
-            {showMarkCompleteModal && training && (
+            {!isCoach && showMarkCompleteModal && training && (
                 <MarkAsCompleteModal
                     training={{
                         id: String(training.id),

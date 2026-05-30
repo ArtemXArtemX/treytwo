@@ -7,7 +7,7 @@ import "../../styles/fullcalendar.css";
 import Header from "../../components/Header";
 import TrainingDetailsModal from "../../components/modals/TrainingDetailsModal";
 import PlanTrainingModal from "../../components/modals/PlanSessionModal";
-import trainingService from "../../api/trainingService";
+import coachService from "../../api/coachService";
 
 export type TrainingStatus = "planned" | "done";
 
@@ -43,10 +43,12 @@ export type TrainingEvent = {
 
 interface Athlete {
     id: number;
-    surname: string;
-    name: string;
+    fullname?: string;
+    surname?: string;
+    name?: string;
     fathername?: string;
-    nickname: string;
+    nickname?: string;
+    email?: string;
 }
 
 const toYmdLocal = (d: Date) => {
@@ -83,12 +85,24 @@ const CoachCalendarPage: React.FC = () => {
     const [planOpen, setPlanOpen] = useState(false);
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const [athletes] = useState<Athlete[]>([
-        { id: 1, surname: "Татарников", name: "Артём", fathername: "Павлович", nickname: "tematrkv" },
-        { id: 2, surname: "Иванов", name: "Иван", fathername: "Иванович", nickname: "ivan_runner" },
-        { id: 3, surname: "Петрова", name: "Анна", fathername: "Сергеевна", nickname: "anna_run" },
-    ]);
-    const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(athletes[0]);
+    const [athletes, setAthletes] = useState<Athlete[]>([]);
+    const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
+    useEffect(() => {
+        const loadSportsmans = async () => {
+            try {
+                const data = await coachService.getSportsmans();
+                setAthletes(data);
+
+                if (data.length > 0) {
+                    setSelectedAthlete(data[0]);
+                }
+            } catch (error) {
+                console.error("Ошибка загрузки спортсменов:", error);
+            }
+        };
+
+        loadSportsmans();
+    }, []);
 
     useEffect(() => {
         const fetchAthleteTrainings = async () => {
@@ -99,7 +113,7 @@ const CoachCalendarPage: React.FC = () => {
                 const startDate = "2000-01-01";
                 const endDate = "2100-01-01";
 
-                const response = await trainingService.getTrainings(
+                const response = await coachService.getSportsmanTrainings(
                     selectedAthlete.id,
                     startDate,
                     endDate
@@ -181,19 +195,33 @@ const CoachCalendarPage: React.FC = () => {
     const goPrev = () => calendarRef.current?.getApi().prev();
     const goNext = () => calendarRef.current?.getApi().next();
 
-    const onPlanSubmit = (payload: any) => {
-        const newTraining: TrainingEvent = {
-            id: crypto.randomUUID(),
-            date: payload.date,
-            status: "planned",
-            name: payload.name,
-            sport: payload.sport_id,
-            typeTraining: payload.type_training_id,
-            note: payload.note,
-            startTime: payload.startTime,
-        };
-        setTrainings((prev) => [...prev, newTraining]);
+    const onPlanSubmit = async () => {
         setPlanOpen(false);
+
+        if (!selectedAthlete) return;
+
+        const response = await coachService.getSportsmanTrainings(
+            selectedAthlete.id,
+            "2000-01-01",
+            "2100-01-01"
+        );
+
+        const trainingsData = response.trainings || [];
+
+        setTrainings(trainingsData.map((item: any) => ({
+            id: String(item.id),
+            date: item.time_start?.split("T")[0] || item.local_timestamp?.split("T")[0],
+            status: String(item.status_training) === "Завершено" ? "done" : "planned",
+            name: item.name_training || "Тренировка",
+            sport: item.sport_id,
+            typeTraining: item.type_training_id,
+            note: item.comment_sportsman || undefined,
+            startTime: item.time_start?.split("T")[1]?.substring(0, 5) ||
+                item.local_timestamp?.split("T")[1]?.substring(0, 5),
+            distanceKm: item.distance ? item.distance / 1000 : undefined,
+            durationSec: item.duration || undefined,
+            calories: item.calories || undefined,
+        })));
     };
 
     const handleTrainingClick = async (training: TrainingEvent, e: React.MouseEvent) => {
@@ -201,7 +229,10 @@ const CoachCalendarPage: React.FC = () => {
         e.preventDefault();
 
         try {
-            const midData = await trainingService.getTrainingMid(Number(training.id));
+            const midData = await coachService.getSportsmanTrainingMid(
+                Number(training.id),
+                selectedAthlete!.id
+            );
 
             const updatedTraining: TrainingEvent = {
                 id: training.id,
@@ -262,7 +293,12 @@ const CoachCalendarPage: React.FC = () => {
         const { start, end } = currentDateRange;
         const filteredTrainings = trainings.filter(training => {
             const trainingDate = new Date(training.date);
-            return trainingDate >= start && trainingDate < end;
+
+            return (
+                training.status === "done" &&
+                trainingDate >= start &&
+                trainingDate < end
+            );
         });
 
         const stats = {
@@ -283,7 +319,8 @@ const CoachCalendarPage: React.FC = () => {
     }, [trainings, currentDateRange]);
 
     const getFullName = (athlete: Athlete) => {
-        return `${athlete.surname} ${athlete.name} ${athlete.fathername || ''}`.trim();
+        if (athlete.fullname) return athlete.fullname;
+        return `${athlete.surname || ''} ${athlete.name || ''} ${athlete.fathername || ''}`.trim();
     };
 
     return (
@@ -384,7 +421,7 @@ const CoachCalendarPage: React.FC = () => {
                                         {getFullName(athlete)}
                                     </div>
                                     <div style={{ fontSize: "12px", color: "#666" }}>
-                                        @{athlete.nickname}
+                                        {athlete.nickname ? `@${athlete.nickname}` : athlete.email || "Без никнейма"}
                                     </div>
                                 </div>
                             ))}
@@ -429,7 +466,7 @@ const CoachCalendarPage: React.FC = () => {
 
                     {selectedAthlete && (
                         <div style={{ marginBottom: "16px", color: "#666", fontSize: "14px" }}>
-                            Спортсмен: <strong>{getFullName(selectedAthlete)}</strong> (@{selectedAthlete.nickname})
+                            Спортсмен: <strong>{getFullName(selectedAthlete)}</strong> ({selectedAthlete.nickname ? `@${selectedAthlete.nickname}` : selectedAthlete.email || "Без никнейма"})
                         </div>
                     )}
 
@@ -613,8 +650,20 @@ const CoachCalendarPage: React.FC = () => {
                     </div>
                 </div>
             </main>
-            {planOpen && (<PlanTrainingModal onClose={() => setPlanOpen(false)} onSubmit={onPlanSubmit} />)}
-            {selectedTraining && (<TrainingDetailsModal training={selectedTraining} onClose={() => setSelectedTraining(null)} formatHms={formatHms} formatPace={formatPace} />)}
+            {planOpen && selectedAthlete && (
+                <PlanTrainingModal
+                    athleteId={selectedAthlete.id}
+                    onClose={() => setPlanOpen(false)}
+                    onSubmit={onPlanSubmit}
+                />
+            )}
+            {selectedTraining && (<TrainingDetailsModal
+                training={selectedTraining}
+                onClose={() => setSelectedTraining(null)}
+                formatHms={formatHms}
+                formatPace={formatPace}
+                sportsmanId={selectedAthlete?.id}
+            />)}
         </div>
     );
 };

@@ -14,6 +14,7 @@ import {
 } from 'chart.js';
 import { Bar, Line, Pie } from 'react-chartjs-2';
 import Header from '../../components/Header';
+import coachService from "../../api/coachService";
 
 ChartJS.register(
     CategoryScale,
@@ -50,15 +51,6 @@ interface ChartDataPoint {
     descent: number;
 }
 
-interface Distribution {
-    id: number;
-    name: string;
-    duration: number;
-    distance: number;
-    sessions: number;
-    color: string;
-}
-
 interface ExtraChart {
     id: string;
     metric: string;
@@ -67,141 +59,38 @@ interface ExtraChart {
 
 interface Athlete {
     id: number;
-    surname: string;
-    name: string;
+    fullname?: string;
+    surname?: string;
+    name?: string;
     fathername?: string;
-    nickname: string;
+    nickname?: string;
+    email?: string;
 }
 
 type Period = 'year' | 'month' | 'week' | 'custom';
 
-const generateMockData = (period: Period): { chartData: ChartDataPoint[], metrics: Metrics } => {
-    let points: ChartDataPoint[] = [];
-    let metrics: Metrics = {
-        totalTrainings: 0,
-        totalDistance: 0,
-        totalDuration: 0,
-        avgPace: 0,
-        totalCalories: 0,
-        totalAscent: 0,
-        totalDescent: 0
-    };
+const formatDurationHM = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (hours > 0) return `${hours} ч ${minutes} мин`;
+    return `${minutes} мин`;
+};
 
-    if (period === 'year') {
-        const months = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн', 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек'];
-        for (let i = 0; i < 12; i++) {
-            const distance = 50 + Math.random() * 100;
-            const duration = 18000 + Math.random() * 36000;
-            const sessions = Math.floor(5 + Math.random() * 15);
-            const ascent = 200 + Math.random() * 800;
-            const descent = 180 + Math.random() * 750;
-            const avgSpeedMps = 3 + Math.random() * 4;
+const formatTimeHMS = (value: number): string => {
+    const hours = Math.floor(value / 3600);
+    const minutes = Math.floor((value % 3600) / 60);
+    const seconds = Math.floor(value % 60);
 
-            points.push({
-                date: months[i],
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: ascent,
-                descent: descent,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-            metrics.totalAscent += ascent;
-            metrics.totalDescent += descent;
-        }
-    } else if (period === 'month') {
-        for (let i = 1; i <= 30; i++) {
-            const distance = 3 + Math.random() * 15;
-            const duration = 1800 + Math.random() * 5400;
-            const sessions = Math.floor(1 + Math.random() * 3);
-            const avgSpeedMps = 3 + Math.random() * 4;
-
-            points.push({
-                date: `${i}`,
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: 20 + Math.random() * 150,
-                descent: 15 + Math.random() * 130,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-        }
-    } else {
-        const days = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-        for (let i = 0; i < 7; i++) {
-            const distance = 3 + Math.random() * 12;
-            const duration = 1200 + Math.random() * 3600;
-            const sessions = Math.floor(1 + Math.random() * 2);
-            const avgSpeedMps = 3 + Math.random() * 4;
-
-            points.push({
-                date: days[i],
-                distance: distance,
-                duration: duration,
-                sessions: sessions,
-                avgSpeed: avgSpeedMps,
-                maxSpeed: 5 + Math.random() * 6,
-                avgHr: 120 + Math.random() * 40,
-                ascent: 15 + Math.random() * 100,
-                descent: 10 + Math.random() * 90,
-            });
-
-            metrics.totalTrainings += sessions;
-            metrics.totalDistance += distance;
-            metrics.totalDuration += duration;
-        }
+    if (hours > 0) {
+        return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
     }
 
-    const totalHours = metrics.totalDuration / 3600;
-    const avgSpeedMps = totalHours > 0 ? metrics.totalDistance / totalHours : 0;
-    metrics.avgPace = avgSpeedMps > 0 ? 1000 / avgSpeedMps : 0;
-    metrics.totalCalories = Math.round(metrics.totalDistance * 70);
-
-    return { chartData: points, metrics };
-};
-
-const sportDistributions: Distribution[] = [
-    { id: 1, name: 'Бег', duration: 28000, distance: 110, sessions: 15, color: '#D1001C' },
-    { id: 2, name: 'Велоспорт', duration: 12000, distance: 35, sessions: 5, color: '#0d6efd' },
-    { id: 3, name: 'Плавание', duration: 4000, distance: 8, sessions: 2, color: '#198754' },
-    { id: 4, name: 'Силовая', duration: 1120, distance: 3.8, sessions: 1, color: '#ffc107' },
-];
-
-const trainingTypeDistributions: Distribution[] = [
-    { id: 1, name: 'Длительная', duration: 18000, distance: 70, sessions: 8, color: '#D1001C' },
-    { id: 2, name: 'Интервальная', duration: 12000, distance: 45, sessions: 6, color: '#0d6efd' },
-    { id: 3, name: 'Темповая', duration: 9000, distance: 30, sessions: 5, color: '#198754' },
-    { id: 4, name: 'Восстановительная', duration: 6120, distance: 11.8, sessions: 4, color: '#ffc107' },
-];
-
-const formatDuration = (seconds: number): string => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    if (h > 0) return `${h} ч ${m} мин`;
-    return `${m} мин`;
-};
-
-const formatPace = (paceSecPerKm: number): string => {
-    const minutes = Math.floor(paceSecPerKm / 60);
-    const seconds = Math.floor(paceSecPerKm % 60);
     return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 };
 
 const metricOptions = [
     { value: 'distance', label: 'Дистанция (км)', type: 'bar', unit: 'км' },
-    { value: 'duration', label: 'Продолжительность (мин)', type: 'bar', unit: 'мин' },
+    { value: 'duration', label: 'Продолжительность', type: 'bar', unit: 'ч:мм:сс' },
     { value: 'ascent', label: 'Подъём (м)', type: 'bar', unit: 'м' },
     { value: 'descent', label: 'Спуск (м)', type: 'bar', unit: 'м' },
     { value: 'pace', label: 'Темп (мин/км)', type: 'line', unit: 'мин/км' },
@@ -227,12 +116,8 @@ const CoachReportsPage: React.FC = () => {
     });
     const [drawerOpen, setDrawerOpen] = useState(false);
 
-    const [athletes] = useState<Athlete[]>([
-        { id: 1, surname: "Татарников", name: "Артём", fathername: "Павлович", nickname: "tematrkv" },
-        { id: 2, surname: "Иванов", name: "Иван", fathername: "Иванович", nickname: "ivan_runner" },
-        { id: 3, surname: "Петрова", name: "Анна", fathername: "Сергеевна", nickname: "anna_run" },
-    ]);
-    const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(athletes[0]);
+    const [athletes, setAthletes] = useState<Athlete[]>([]);
+    const [selectedAthlete, setSelectedAthlete] = useState<Athlete | null>(null);
 
     const [barMetric, setBarMetric] = useState<'distance' | 'duration' | 'ascent' | 'descent'>('distance');
     const [leftLineMetric, setLeftLineMetric] = useState<'pace' | 'maxSpeed' | 'avgHr' | 'none'>('pace');
@@ -242,11 +127,124 @@ const CoachReportsPage: React.FC = () => {
         { id: 'extra1', metric: 'avgHr', color: '#D1001C' },
     ]);
 
+    const [typePie, setTypePie] = useState<any[]>([]);
+    const [sportSessionPie, setSportSessionPie] = useState<any[]>([]);
+    const [sportDistancePie, setSportDistancePie] = useState<any[]>([]);
+    const [sportDurationPie, setSportDurationPie] = useState<any[]>([]);
+
+    const toApiDate = (date: Date): string => {
+        return date.toISOString().split("T")[0];
+    };
+
+    const getReportRange = (period: Period, customStart: Date | null, customEnd: Date | null) => {
+        const now = new Date();
+        let start = new Date(now);
+        let end = new Date(now);
+
+        if (period === "year") {
+            start = new Date(now.getFullYear(), 0, 1);
+            end = new Date(now.getFullYear(), 11, 31);
+            return { start: toApiDate(start), end: toApiDate(end), bin: "month" };
+        }
+
+        if (period === "month") {
+            start = new Date(now.getFullYear(), now.getMonth(), 1);
+            end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            return { start: toApiDate(start), end: toApiDate(end), bin: "day" };
+        }
+
+        if (period === "week") {
+            const day = now.getDay() || 7;
+            start = new Date(now);
+            start.setDate(now.getDate() - day + 1);
+            end = new Date(start);
+            end.setDate(start.getDate() + 6);
+            return { start: toApiDate(start), end: toApiDate(end), bin: "day" };
+        }
+
+        return {
+            start: customStart ? toApiDate(customStart) : toApiDate(now),
+            end: customEnd ? toApiDate(customEnd) : toApiDate(now),
+            bin: "day",
+        };
+    };
+
     useEffect(() => {
-        const { chartData: data, metrics: newMetrics } = generateMockData(period);
-        setChartData(data);
-        setMetrics(newMetrics);
-    }, [period, customStart, customEnd]);
+        const loadSportsmans = async () => {
+            try {
+                const data = await coachService.getSportsmans();
+
+                setAthletes(data);
+
+                if (data.length > 0) {
+                    setSelectedAthlete(data[0]);
+                }
+            } catch (error) {
+                console.error("Ошибка загрузки спортсменов:", error);
+            }
+        };
+
+        loadSportsmans();
+    }, []);
+
+    useEffect(() => {
+        const loadReport = async () => {
+            if (!selectedAthlete) {
+                setChartData([]);
+                setMetrics({
+                    totalTrainings: 0,
+                    totalDistance: 0,
+                    totalDuration: 0,
+                    avgPace: 0,
+                    totalCalories: 0,
+                    totalAscent: 0,
+                    totalDescent: 0,
+                });
+                return;
+            }
+
+            const range = getReportRange(period, customStart, customEnd);
+
+            const report = await coachService.getSportsmanReport(
+                selectedAthlete.id,
+                range.start,
+                range.end,
+                range.bin
+            );
+
+            setMetrics({
+                totalTrainings: report.overview.total_trainings ?? 0,
+                totalDistance: report.overview.total_distance ?? 0,
+                totalDuration: report.overview.total_duration ?? 0,
+                avgPace: report.overview.avg_pace ?? 0,
+                totalCalories: report.overview.total_calories ?? 0,
+                totalAscent: report.overview.total_ascent ?? 0,
+                totalDescent: report.overview.total_descent ?? 0,
+            });
+
+            setChartData(
+                report.reportBins.map((bin) => ({
+                    date: bin.bin_period,
+                    distance: (bin.total_distance ?? 0) / 1000,
+                    duration: bin.total_duration ?? 0,
+                    sessions: bin.total_trainings ?? 0,
+                    avgSpeed: bin.avg_pace && bin.avg_pace > 0
+                        ? 1000 / bin.avg_pace
+                        : 0,
+                    maxSpeed: bin.max_speed ?? 0,
+                    avgHr: bin.avg_heart_rate ?? 0,
+                    ascent: bin.total_ascent ?? 0,
+                    descent: bin.total_descent ?? 0,
+                }))
+            );
+            setTypePie(report.typePie || []);
+            setSportSessionPie(report.sportSessionPie || []);
+            setSportDistancePie(report.sportDistancePie || []);
+            setSportDurationPie(report.sportDurationPie || []);
+        };
+
+        loadReport();
+    }, [selectedAthlete, period, customStart, customEnd]);
 
     const addExtraChart = () => {
         const newId = `extra${extraCharts.length + 1}`;
@@ -267,7 +265,7 @@ const CoachReportsPage: React.FC = () => {
     const barDataValues = chartData.map(d => {
         switch (barMetric) {
             case 'distance': return d.distance;
-            case 'duration': return d.duration / 60;
+            case 'duration': return d.duration;
             case 'ascent': return d.ascent;
             case 'descent': return d.descent;
             default: return d.distance;
@@ -277,7 +275,7 @@ const CoachReportsPage: React.FC = () => {
     const getLineData = (metric: string) => {
         if (metric === 'none') return [];
         if (metric === 'pace') {
-            return chartData.map(d => d.avgSpeed > 0 ? 1000 / d.avgSpeed : 0);
+            return chartData.map(d => d.avgSpeed > 0 ? d.avgSpeed / 60 : 0);
         }
         return chartData.map(d => d[metric as keyof ChartDataPoint] as number);
     };
@@ -299,7 +297,7 @@ const CoachReportsPage: React.FC = () => {
         return '';
     };
 
-    const barUnit = barMetric === 'distance' ? 'км' : barMetric === 'duration' ? 'мин' : 'м';
+    const barUnit = barMetric === 'distance' ? 'км' : barMetric === 'duration' ? 'ч:мм:сс' : 'м';
 
     const getExtraChartData = (metric: string) => {
         switch (metric) {
@@ -307,7 +305,10 @@ const CoachReportsPage: React.FC = () => {
             case 'duration': return chartData.map(d => d.duration / 60);
             case 'ascent': return chartData.map(d => d.ascent);
             case 'descent': return chartData.map(d => d.descent);
-            case 'pace': return chartData.map(d => d.avgSpeed > 0 ? 1000 / d.avgSpeed : 0);
+            case 'pace': return chartData.map(d => {
+                const paceMinPerKm = d.avgSpeed > 0 ? 1000 / (d.avgSpeed * 60) : 0;
+                return paceMinPerKm;
+            });
             case 'maxSpeed': return chartData.map(d => d.maxSpeed);
             case 'avgHr': return chartData.map(d => d.avgHr);
             case 'sessions': return chartData.map(d => d.sessions);
@@ -320,11 +321,59 @@ const CoachReportsPage: React.FC = () => {
         return option?.unit || '';
     };
 
+    const getPaceAxisRange = (values: number[]) => {
+        const valid = values.filter(v => v > 0);
+
+        if (valid.length === 0) {
+            return {};
+        }
+
+        const min = Math.min(...valid);
+        const max = Math.max(...valid);
+        const padding = Math.max((max - min) * 0.25, 0.3);
+
+        return {
+            min: Math.max(0, min - padding),
+            max: max + padding,
+        };
+    };
+
     const combinedChartOptions = {
         responsive: true,
         maintainAspectRatio: false,
         interaction: { mode: 'index' as const, intersect: false },
-        plugins: { legend: { position: 'top' as const } },
+        plugins: {
+            legend: { position: 'top' as const },
+            tooltip: {
+                callbacks: {
+                    label: (context: any) => {
+                        const label = context.dataset.label || '';
+                        let value = context.raw;
+                        if (label.includes('Темп') && value > 0) {
+                            const minutes = Math.floor(value);
+                            const seconds = Math.round((value - minutes) * 60);
+                            return `${label}: ${minutes}:${seconds.toString().padStart(2, '0')} /км`;
+                        }
+                        if (label.includes('Продолжительность')) {
+                            return `${label}: ${formatTimeHMS(value)}`;
+                        }
+                        if (label.includes('Дистанция')) {
+                            return `${label}: ${value} км`;
+                        }
+                        if (label.includes('Подъём') || label.includes('Спуск')) {
+                            return `${label}: ${value} м`;
+                        }
+                        if (label.includes('Пульс')) {
+                            return `${label}: ${value} уд/мин`;
+                        }
+                        if (label.includes('Макс. скорость')) {
+                            return `${label}: ${value} м/с`;
+                        }
+                        return `${label}: ${value}`;
+                    }
+                }
+            }
+        },
         scales: {
             y: {
                 title: { display: true, text: barUnit },
@@ -335,7 +384,19 @@ const CoachReportsPage: React.FC = () => {
                 position: 'right' as const,
                 title: { display: true, text: getLineUnit(leftLineMetric) },
                 beginAtZero: true,
+                reverse: leftLineMetric === 'pace',
+                ...(leftLineMetric === 'pace' ? getPaceAxisRange(leftLineDataValues) : {}),
                 grid: { drawOnChartArea: false },
+                ticks: {
+                    callback: (value: any) => {
+                        if (leftLineMetric === 'pace') {
+                            const minutes = Math.floor(value);
+                            const seconds = Math.round((value - minutes) * 60);
+                            return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+                        }
+                        return value;
+                    }
+                }
             },
             ...(rightLineMetric !== 'none' && {
                 y2: {
@@ -369,9 +430,9 @@ const CoachReportsPage: React.FC = () => {
                 label: getLineLabel(leftLineMetric),
                 data: leftLineDataValues,
                 borderColor: '#0d6efd',
-                backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                backgroundColor: 'transparent',
+                fill: false,
                 tension: 0.4,
-                fill: true,
                 pointRadius: 3,
                 pointHoverRadius: 5,
                 type: 'line' as const,
@@ -392,34 +453,54 @@ const CoachReportsPage: React.FC = () => {
         ],
     };
 
-    const createPieConfig = (data: Distribution[], valueKey: 'duration' | 'distance' | 'sessions') => {
-        const total = data.reduce((sum, d) => sum + d[valueKey], 0);
+    const pieColors = [
+        '#D1001C',
+        '#0d6efd',
+        '#198754',
+        '#ffc107',
+        '#6f42c1',
+        '#fd7e14',
+        '#20c997',
+        '#dc3545',
+    ];
+
+    const createPieConfig = (data: any[]) => {
+        const total = data.reduce((sum, d) => sum + d.value, 0);
+
         return {
             data: {
-                labels: data.map(d => d.name),
+                labels: data.map(d => d.caption),
                 datasets: [{
-                    data: data.map(d => d[valueKey]),
-                    backgroundColor: data.map(d => d.color),
+                    data: data.map(d => d.value),
+                    backgroundColor: pieColors.slice(0, data.length),
                     borderWidth: 0,
                 }],
             },
+
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+
                 plugins: {
                     tooltip: {
                         callbacks: {
                             label: (context: any) => {
                                 const value = context.raw;
-                                const percentage = ((value / total) * 100).toFixed(1);
-                                const unit = valueKey === 'duration' ? 'мин' : valueKey === 'distance' ? 'км' : 'сессий';
-                                return `${context.label}: ${value} ${unit} (${percentage}%)`;
+                                const percentage = total > 0
+                                    ? ((value / total) * 100).toFixed(1)
+                                    : 0;
+
+                                return `${context.label}: ${value} (${percentage}%)`;
                             }
                         }
                     },
+
                     legend: {
                         position: 'bottom' as const,
-                        labels: { font: { size: 11 }, boxWidth: 12 }
+                        labels: {
+                            font: { size: 11 },
+                            boxWidth: 12
+                        }
                     }
                 }
             }
@@ -427,13 +508,12 @@ const CoachReportsPage: React.FC = () => {
     };
 
     const metricsCards = [
-        { label: 'Всего тренировок', value: metrics.totalTrainings, unit: '' },
-        { label: 'Общая дистанция', value: metrics.totalDistance.toFixed(1), unit: 'км' },
-        { label: 'Общее время', value: formatDuration(metrics.totalDuration), unit: '' },
-        { label: 'Средний темп', value: formatPace(metrics.avgPace), unit: '/км' },
-        { label: 'Калории', value: metrics.totalCalories, unit: 'ккал' },
-        { label: 'Набор высоты', value: metrics.totalAscent.toFixed(1), unit: 'м' },
-        { label: 'Спуск', value: metrics.totalDescent.toFixed(1), unit: 'м' },
+        { label: 'Всего тренировок', value: metrics.totalTrainings ?? 0, unit: '' },
+        { label: 'Общая дистанция', value: metrics.totalDistance ? (metrics.totalDistance / 1000).toFixed(2) : '0', unit: 'км' },
+        { label: 'Общее время', value: metrics.totalDuration ? formatDurationHM(metrics.totalDuration) : '0', unit: '' },
+        { label: 'Калории', value: metrics.totalCalories ?? 0, unit: 'ккал' },
+        { label: 'Набор высоты', value: metrics.totalAscent ? metrics.totalAscent.toFixed(1) : '0', unit: 'м' },
+        { label: 'Спуск', value: metrics.totalDescent ? metrics.totalDescent.toFixed(1) : '0', unit: 'м' },
     ];
 
     const chartOptions = {
@@ -444,7 +524,8 @@ const CoachReportsPage: React.FC = () => {
     };
 
     const getFullName = (athlete: Athlete) => {
-        return `${athlete.surname} ${athlete.name} ${athlete.fathername || ''}`.trim();
+        if (athlete.fullname) return athlete.fullname;
+        return `${athlete.surname || ''} ${athlete.name || ''} ${athlete.fathername || ''}`.trim();
     };
 
     return (
@@ -534,7 +615,7 @@ const CoachReportsPage: React.FC = () => {
                                         {getFullName(athlete)}
                                     </div>
                                     <div style={{ fontSize: "12px", color: "#666" }}>
-                                        @{athlete.nickname}
+                                        {athlete.nickname ? `@${athlete.nickname}` : athlete.email || "Без никнейма"}
                                     </div>
                                 </div>
                             ))}
@@ -560,7 +641,9 @@ const CoachReportsPage: React.FC = () => {
                         <h1 style={{ fontSize: "28px", fontWeight: 700, color: "#1a1a1a", margin: 0 }}>Отчёты</h1>
                         {selectedAthlete && (
                             <div style={{ color: "#666", fontSize: "14px", background: "#f8f9fa", padding: "6px 12px", borderRadius: "8px" }}>
-                                Спортсмен: <strong>{getFullName(selectedAthlete)}</strong> (@{selectedAthlete.nickname})
+                                Спортсмен: <strong>{getFullName(selectedAthlete)}</strong> ({selectedAthlete.nickname
+                                ? `@${selectedAthlete.nickname}`
+                                : selectedAthlete.email || "Без никнейма"})
                             </div>
                         )}
                     </div>
@@ -653,7 +736,7 @@ const CoachReportsPage: React.FC = () => {
                                 <div className="d-flex gap-3 flex-wrap">
                                     <select className="form-select form-select-sm w-auto" value={barMetric} onChange={(e) => setBarMetric(e.target.value as any)}>
                                         <option value="distance">Дистанция (км)</option>
-                                        <option value="duration">Продолжительность (мин)</option>
+                                        <option value="duration">Продолжительность</option>
                                         <option value="ascent">Подъём (м)</option>
                                         <option value="descent">Спуск (м)</option>
                                     </select>
@@ -762,19 +845,19 @@ const CoachReportsPage: React.FC = () => {
                                         <div className="col-md-4">
                                             <h6 className="text-center mb-3">По продолжительности</h6>
                                             <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(sportDistributions, 'duration')} />
+                                                <Pie {...createPieConfig(sportDurationPie)} />
                                             </div>
                                         </div>
                                         <div className="col-md-4">
                                             <h6 className="text-center mb-3">По дистанции</h6>
                                             <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(sportDistributions, 'distance')} />
+                                                <Pie {...createPieConfig(sportDistancePie)} />
                                             </div>
                                         </div>
                                         <div className="col-md-4">
                                             <h6 className="text-center mb-3">По количеству сессий</h6>
                                             <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(sportDistributions, 'sessions')} />
+                                                <Pie {...createPieConfig(sportSessionPie)} />
                                             </div>
                                         </div>
                                     </div>
@@ -789,22 +872,10 @@ const CoachReportsPage: React.FC = () => {
                                 <div className="card-body p-4">
                                     <h5 style={{ fontWeight: 600, marginBottom: "20px" }}>Распределение по типам тренировок</h5>
                                     <div className="row">
-                                        <div className="col-md-4">
-                                            <h6 className="text-center mb-3">По продолжительности</h6>
-                                            <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(trainingTypeDistributions, 'duration')} />
-                                            </div>
-                                        </div>
-                                        <div className="col-md-4">
-                                            <h6 className="text-center mb-3">По дистанции</h6>
-                                            <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(trainingTypeDistributions, 'distance')} />
-                                            </div>
-                                        </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-6 mx-auto">
                                             <h6 className="text-center mb-3">По количеству сессий</h6>
                                             <div style={{ height: "300px" }}>
-                                                <Pie {...createPieConfig(trainingTypeDistributions, 'sessions')} />
+                                                <Pie {...createPieConfig(typePie)} />
                                             </div>
                                         </div>
                                     </div>

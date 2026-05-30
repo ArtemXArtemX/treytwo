@@ -126,39 +126,22 @@ const AthleteCalendarPage: React.FC = () => {
         }
     };
 
-    const [reportData, setReportData] = useState({
-        total_trainings: 0,
-        total_duration: 0,
-        total_distance: 0,
-        total_calories: 0
-    });
-
     useEffect(() => {
-        const fetchTrainingsForPeriod = async () => {
-            if (!currentDateRange) return;
-
+        const fetchTrainings = async () => {
             const currentUser = authService.getCurrentUser();
             if (!currentUser) return;
 
             setIsLoading(true);
-            try {
-                const startStr = currentDateRange.start.toISOString();
-                const endStr = currentDateRange.end.toISOString();
 
+            try {
                 const response = await trainingService.getTrainings(
                     currentUser.id,
-                    startStr,
-                    endStr
+                    "2000-01-01",
+                    "2100-01-01"
                 );
 
-                setReportData(response.report || {
-                    total_trainings: 0,
-                    total_duration: 0,
-                    total_distance: 0,
-                    total_calories: 0
-                });
-
                 const trainingsData = response.trainings || [];
+
                 const fetchedTrainings: TrainingEvent[] = trainingsData.map((item: any) => {
                     let date = '';
                     let startTime = undefined;
@@ -166,26 +149,22 @@ const AthleteCalendarPage: React.FC = () => {
                     if (item.time_start) {
                         const [datePart, timePart] = item.time_start.split('T');
                         date = datePart;
-                        if (timePart) {
-                            startTime = timePart.substring(0, 5);
-                        }
+                        startTime = timePart?.substring(0, 5);
                     } else if (item.local_timestamp) {
                         const [datePart, timePart] = item.local_timestamp.split('T');
                         date = datePart;
-                        if (timePart) {
-                            startTime = timePart.substring(0, 5);
-                        }
+                        startTime = timePart?.substring(0, 5);
                     }
 
                     return {
                         id: String(item.id),
-                        date: date,
+                        date,
                         status: String(item.status_training) === "Завершено" ? "done" : "planned",
                         name: item.name_training || "Тренировка",
                         sport: item.sport_id,
                         typeTraining: item.type_training_id,
                         note: item.comment_sportsman || undefined,
-                        startTime: startTime,
+                        startTime,
                         distanceKm: item.distance ? parseFloat((item.distance / 1000).toFixed(2)) : undefined,
                         durationSec: item.duration || undefined,
                         avgHr: item.avg_heart_rate || undefined,
@@ -205,16 +184,14 @@ const AthleteCalendarPage: React.FC = () => {
 
                 setTrainings(fetchedTrainings);
             } catch (error) {
-                console.error("Ошибка загрузки тренировок за период:", error);
+                console.error("Ошибка загрузки тренировок:", error);
             } finally {
                 setIsLoading(false);
             }
         };
 
-        if (currentDateRange) {
-            fetchTrainingsForPeriod();
-        }
-    }, [currentDateRange]);
+        fetchTrainings();
+    }, []);
 
     const trainingsByDate = useMemo(() => {
         const map = new Map<string, TrainingEvent[]>();
@@ -234,20 +211,43 @@ const AthleteCalendarPage: React.FC = () => {
     }, [trainings]);
 
     const statsData = useMemo(() => {
-        if (!currentDateRange) return {
+        if (!currentDateRange) {
+            return {
+                totalTrainings: 0,
+                totalDistance: 0,
+                totalTime: 0,
+                totalCalories: 0
+            };
+        }
+
+        const { start, end } = currentDateRange;
+
+        const filteredTrainings = trainings.filter(training => {
+            const trainingDate = new Date(training.date);
+
+            return (
+                training.status === "done" &&
+                trainingDate >= start &&
+                trainingDate < end
+            );
+        });
+
+        const stats = {
             totalTrainings: 0,
             totalDistance: 0,
             totalTime: 0,
             totalCalories: 0
         };
 
-        return {
-            totalTrainings: reportData.total_trainings,
-            totalDistance: reportData.total_distance / 1000,
-            totalTime: reportData.total_duration,
-            totalCalories: reportData.total_calories
-        };
-    }, [reportData, currentDateRange]);
+        filteredTrainings.forEach(training => {
+            stats.totalTrainings++;
+            if (training.distanceKm) stats.totalDistance += training.distanceKm;
+            if (training.durationSec) stats.totalTime += training.durationSec;
+            if (training.calories) stats.totalCalories += training.calories;
+        });
+
+        return stats;
+    }, [trainings, currentDateRange]);
 
     const goPrev = () => calendarRef.current?.getApi().prev();
     const goNext = () => calendarRef.current?.getApi().next();
@@ -706,10 +706,8 @@ const AthleteCalendarPage: React.FC = () => {
             {uploadOpen && (<UploadSessionModal onClose={() => setUploadOpen(false)} onParsed={onUploadParsed} />)}
             {planOpen && (<PlanTrainingModal onClose={() => setPlanOpen(false)} onSubmit={onPlanSubmit} />)}
             {selectedTraining && (<TrainingDetailsModal training={selectedTraining} onClose={() => setSelectedTraining(null)} formatHms={formatHms} formatPace={formatPace} />)}
-            {/* Список запланированных тренировок */}
             {showPlannedList && (
                 <PlannedTrainingsList
-                    trainings={trainings.filter(t => t.status === "planned")}
                     onSelect={(training) => {
                         setSelectedPlannedTraining(training);
                         setShowPlannedList(false);

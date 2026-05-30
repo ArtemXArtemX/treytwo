@@ -45,8 +45,8 @@ const RegistrationPage: React.FC = () => {
         gender: "other",
         height: "",
         weight: "",
-        hr_rest: "60",
-        hr_max: "180",
+        hr_rest: "",
+        hr_max: "",
         pace_max: "",
     });
 
@@ -206,7 +206,7 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="row g-3 mb-3">
                         <div className="col-md-4">
-                            <label className="form-label">Фамилия</label>
+                            <label className="form-label">Фамилия*</label>
                             <input
                                 name="lastName"
                                 value={form.lastName}
@@ -219,7 +219,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-4">
-                            <label className="form-label">Имя</label>
+                            <label className="form-label">Имя*</label>
                             <input
                                 name="firstName"
                                 value={form.firstName}
@@ -232,7 +232,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-4">
-                            <label className="form-label">Отчество*</label>
+                            <label className="form-label">Отчество</label>
                             <input
                                 name="fatherName"
                                 value={form.fatherName}
@@ -243,7 +243,7 @@ const RegistrationPage: React.FC = () => {
                     </div>
 
                     <div className="mb-3">
-                        <label className="form-label">Никнейм</label>
+                        <label className="form-label">Никнейм*</label>
                         <input
                             name="nickname"
                             value={form.nickname}
@@ -255,7 +255,7 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="row g-3 mb-3">
                         <div className="col-md-4">
-                            <label className="form-label">Пол</label>
+                            <label className="form-label">Пол*</label>
                             <select
                                 name="gender"
                                 value={form.gender}
@@ -273,7 +273,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-4">
-                            <label className="form-label">Дата рождения</label>
+                            <label className="form-label">Дата рождения*</label>
                             <input
                                 type="date"
                                 name="birthDate"
@@ -289,7 +289,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-4">
-                            <label className="form-label">Рост (см)</label>
+                            <label className="form-label">Рост (см)*</label>
                             <input
                                 name="height"
                                 type="number"
@@ -306,7 +306,7 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="row g-3 mb-3">
                         <div className="col-md-4">
-                            <label className="form-label">Вес (кг)</label>
+                            <label className="form-label">Вес (кг)*</label>
                             <input
                                 name="weight"
                                 type="number"
@@ -358,7 +358,7 @@ const RegistrationPage: React.FC = () => {
                     </div>
 
                     <div className="mb-3">
-                        <label className="form-label">Основной вид спорта</label>
+                        <label className="form-label">Основной вид спорта*</label>
                             <select
                                 name="sportType"
                                 value={form.sportType}
@@ -379,7 +379,7 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="row g-3 mb-3">
                         <div className="col-md-6">
-                            <label className="form-label">Email</label>
+                            <label className="form-label">Email*</label>
                             <input
                                 name="email"
                                 type="email"
@@ -393,7 +393,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-6">
-                            <label className="form-label">Подтверждение email</label>
+                            <label className="form-label">Подтверждение email*</label>
                             <input
                                 name="confirmEmail"
                                 type="email"
@@ -411,7 +411,7 @@ const RegistrationPage: React.FC = () => {
 
                     <div className="row g-3 mb-3">
                         <div className="col-md-6">
-                            <label className="form-label">Пароль</label>
+                            <label className="form-label">Пароль*</label>
                             <input
                                 name="password"
                                 type="password"
@@ -425,7 +425,7 @@ const RegistrationPage: React.FC = () => {
                         </div>
 
                         <div className="col-md-6">
-                            <label className="form-label">Подтверждение пароля</label>
+                            <label className="form-label">Подтверждение пароля*</label>
                             <input
                                 name="confirmPassword"
                                 type="password"

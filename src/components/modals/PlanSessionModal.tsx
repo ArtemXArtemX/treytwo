@@ -4,6 +4,8 @@ import trainingTypeService from "../../api/trainingTypeService";
 import trainingService from "../../api/trainingService";
 import authService from "../../api/authService";
 import { TrainingType } from "../../models/trainingType";
+import coachService from "../../api/coachService";
+import { useRole } from "../../context/RoleContext";
 
 export type PlanTrainingPayload = {
     date: string;
@@ -34,6 +36,7 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit, athleteId }) =>
     const [loadingTrainingTypes, setLoadingTrainingTypes] = useState(true);
     const [error, setError] = useState<string>("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { isCoach } = useRole();
 
     useEffect(() => {
         const fetchSports = async () => {
@@ -190,8 +193,11 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit, athleteId }) =>
 
             console.log("📤 Отправка данных планирования:", trainingData);
 
-            // Вызов API (нужно добавить метод в trainingService)
-            await trainingService.createPlannedTraining(trainingData);
+            if (isCoach && athleteId) {
+                await coachService.createPlannedTrainingByCoach(athleteId, trainingData);
+            } else {
+                await trainingService.createPlannedTraining(trainingData);
+            }
 
             const selectedSport = sports.find(s => s.id.toString() === form.sport);
             const selectedType = trainingTypes.find(t => t.id.toString() === form.typeTraining);
@@ -210,7 +216,7 @@ const PlanTrainingModal: React.FC<Props> = ({ onClose, onSubmit, athleteId }) =>
             onSubmit(payload);
             onClose();
         } catch (err: any) {
-            console.error("❌ Ошибка при планировании тренировки:", err);
+            console.error("Ошибка при планировании тренировки:", err);
             setError(err.response?.data?.message || "Ошибка при планировании тренировки");
         } finally {
             setIsSubmitting(false);

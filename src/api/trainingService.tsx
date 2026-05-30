@@ -251,6 +251,24 @@ class TrainingService {
         });
         return response.data;
     }
+
+    async getLowPlannedTrainings(
+        start: string,
+        end: string,
+        startReport: string,
+        endReport: string
+    ): Promise<GetLowResponse> {
+        const response = await api.get<GetLowResponse>('/Training/GetLowPlanned', {
+            params: {
+                start,
+                end,
+                start_report: startReport,
+                end_report: endReport,
+            },
+        });
+
+        return response.data;
+    }
 }
 
 export default new TrainingService();

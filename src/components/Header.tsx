@@ -23,7 +23,7 @@ const Header: React.FC<Props> = ({ active }) => {
         if (path === "/reports") return "report";
         if (path === "/analysis") return "analysis";
         if (isCoach && path === "/sportsmans") return "sportsmans";
-        if (!isCoach && path === "/coaches") return "coach";
+        if (!isCoach && path.startsWith("/coaches")) return "coach";
         if (path === "/challenges") return "challenges";
         return "calendar";
     };

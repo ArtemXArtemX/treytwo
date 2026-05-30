@@ -43,11 +43,9 @@ const LoginPage: React.FC = () => {
             });
 
             console.log("Данные от сервера:", userData);
-            setSuccess("Успешный вход");
 
-            setTimeout(() => {
-                navigate("/calendar");
-            }, 500);
+            setSuccess("Успешный вход");
+            window.location.replace("/calendar");
         } catch (err: any) {
             console.error(err);
             setError("Неверный логин или пароль");

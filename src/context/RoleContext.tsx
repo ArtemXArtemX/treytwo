@@ -20,7 +20,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const checkRole = async () => {
             setIsLoading(true);
             const user = authService.getCurrentUser();
-            setIsCoach(user?.user_only_coach === 1);
+            setIsCoach(Number(user?.user_only_coach) === 1);
             setIsLoading(false);
         };
         checkRole();

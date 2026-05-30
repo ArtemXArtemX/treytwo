@@ -289,6 +289,23 @@ const ReportsPage: React.FC = () => {
         return option?.unit || '';
     };
 
+    const getPaceAxisRange = (values: number[]) => {
+        const valid = values.filter(v => v > 0);
+
+        if (valid.length === 0) {
+            return {};
+        }
+
+        const min = Math.min(...valid);
+        const max = Math.max(...valid);
+        const padding = Math.max((max - min) * 0.25, 0.3);
+
+        return {
+            min: Math.max(0, min - padding),
+            max: max + padding,
+        };
+    };
+
     const combinedChartOptions = {
         responsive: true,
         maintainAspectRatio: false,
@@ -344,6 +361,7 @@ const ReportsPage: React.FC = () => {
                 title: { display: true, text: getLineUnit(leftLineMetric) },
                 beginAtZero: true,
                 reverse: leftLineMetric === 'pace',
+                ...(leftLineMetric === 'pace' ? getPaceAxisRange(leftLineDataValues) : {}),
                 grid: { drawOnChartArea: false },
                 ticks: {
                     callback: (value: any) => {
